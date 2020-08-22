@@ -1,0 +1,2 @@
+# micplot
+ Automated effective visualization

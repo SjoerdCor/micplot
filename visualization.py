@@ -8,15 +8,17 @@ the user receives a Visualization object, with an Axis object as an attribute
 that contains a plot of the data
 """
 import pandas as pd
+import matplotlib.pyplot as plt
 
 import defaults
 import utils
+import plotfunctions
 
 
 class Annotator:
     """Annotates a plot."""
     
-    def __init__(self, ax, orient, text_alignment=None, strfmt='.2f'):
+    def __init__(self, ax, orient, strfmt='.2f', text_alignment=None):
         """
         Initialize Annotator object.
         
@@ -210,7 +212,7 @@ class Consultant:
         """
         plottype = plottype or self.recommend_plottype(data)
         
-        if (plottype in ['bar']
+        if (plottype in ['bar', 'waterfall']
             or (plottype == 'scatter' and len(data) <= defaults.LEN_ANNOTATE_SCATTER)):
             return True
         
@@ -252,6 +254,24 @@ class Consultant:
         elif isinstance(data, pd.DataFrame):
             return 'original'
         return 'ascending'
+    
+    def recommend_stringformat(self, data):
+        '''
+        Determine label precision from data type
+        
+        Parameters
+        ----------
+        data : pandas Dataframe or Series with data to label
+        '''
+        if (isinstance(data, pd.DataFrame) and data.apply(utils.is_percentage_series).all()) or\
+            (isinstance(data, pd.Series) and utils.is_percentage_series(data)):
+            strfmt = '.1%'
+        elif (isinstance(data, pd.DataFrame) and data.apply(pd.api.types.is_integer_dtype).all()) or\
+            (isinstance(data, pd.Series) and pd.api.types.is_integer_dtype(data)):
+            strfmt = 'd'
+        else:
+            strfmt = '.2f'
+        return strfmt
 
     # def recommend_choices(self, data):
     #     # TODO: determine strfmt
@@ -268,9 +288,27 @@ class Visualization:
     
     Fully customizable through its iniatilization and its attributes
     """
-    def __init__(self, data, plottype=None,
-                 highlight=None, highlight_color=defaults.HIGHLIGHT_COLOR,
-                 sorting=None):
+    
+    plots = {'bar': {'function': plotfunctions.plot_bar,
+                 'axes_with_ticks': ['y'],
+                 'orient': 'h',
+                 'len_axis': 0,
+                 },
+             'waterfall': {'function': plotfunctions.plot_waterfall,
+                           'axes_with_ticks': ['y'],
+                           'orient': 'h',
+                           'len_axis': 0
+                           }
+         }
+
+    
+    def __init__(self, data,
+                 plottype=None,
+                 highlight=None,
+                 highlight_color=defaults.HIGHLIGHT_COLOR,
+                 sorting=None,
+                 strfmt=None,
+                 ):
         """
         Initialize the visualization.
         
@@ -300,7 +338,8 @@ class Visualization:
         # TODO: validate data is numeric
         self._data_to_plot = self.data.squeeze()
 
-        self.ax = None
+        fig, ax = plt.subplots()
+        self.ax = ax
 
         self.consultant = Consultant()
         self._sorting = self.consultant.recommend_sorting(self._data_to_plot)
@@ -308,12 +347,13 @@ class Visualization:
         self._highlight = self.consultant.recommend_highlight()
         self.highlight = highlight
         self.highlight_color = highlight_color
-
+        self.strfmt = strfmt or self.consultant.recommend_stringformat(self._data_to_plot)
+        
+        self._plottype = self.consultant.recommend_plottype(self._data_to_plot)
+        self.plottype = plottype
         self._data_to_plot = self.prepare_data()
         self.sorting = sorting
 
-        self._plottype = self.consultant.recommend_plottype(self._data_to_plot)
-        self.plottype = plottype
         self.annotated = self.consultant.recommend_annotation(self._data_to_plot, self._plottype)
 
     @property
@@ -331,12 +371,12 @@ class Visualization:
         if new_plottype is None:
             new_plottype = self.consultant.recommend_plottype(self._data_to_plot)
         new_plottype = new_plottype.lower()
-        if new_plottype not in defaults.plots.keys():
-            raise ValueError(f'Plottype must be one of {defaults.plots.keys()}, not `{new_plottype}`')
+        if new_plottype not in self.plots.keys():
+            raise ValueError(f'Plottype must be one of {self.plots.keys()}, not `{new_plottype}`')
         self._plottype = new_plottype
         self._determine_annotation()
-        self._plot_properties = defaults.plots[self.plottype]
-        self.plot()
+        self._plot_properties = self.plots[self.plottype]
+        # self.plot()
 
     @property
     def highlight(self):
@@ -374,6 +414,8 @@ class Visualization:
                     .squeeze() # DataFrame with single column should be treated as Series
                     .pipe(utils.sort, self.sorting)
                     )
+        if self.plottype == 'waterfall':
+            new_data.loc['Total'] = new_data.sum()
         return new_data
 
     def _determine_annotation(self):
@@ -382,13 +424,7 @@ class Visualization:
 
     def _define_colors(self):
         '''
-        Returns a list of colors with appropiate highlights
-
-        Parameters
-        ----------
-        highlight: list of indices of rows which should be highlighted
-        data: the series or dataframe for which the colors are calculated
-        plottype: string of which plottype to use
+        Return a list of colors with appropiate highlights.
 
         Returns
         -------
@@ -398,24 +434,42 @@ class Visualization:
         len_colors = self._data_to_plot.shape[self._plot_properties['len_axis']]
         color = ['lightgray'] * len_colors
         
+        # Last bar is total, which should not be highlighted
+        if self.plottype == 'waterfall':
+            color = color[:-1] 
+        
         for h in self.highlight:
             color[h] = self.highlight_color
+        
+        # Add darker shade for full bar
+        if self.plottype == 'waterfall':
+            color += ['gray'] 
         return color
 
     def annotate(self):
-        Annotator(self.ax, self._plot_properties['orient']).annotate(self._data_to_plot)
+        """ Annotates values in self.ax"""
+        if self.plottype == 'waterfall':
+            blank = self._data_to_plot.cumsum().shift(1).fillna(0)
+            blank.loc['Total'] = 0
+            locations = self._data_to_plot + blank
+        else:
+            locations = self._data_to_plot
+        (Annotator(self.ax, self._plot_properties['orient'], strfmt=self.strfmt)
+         .annotate(locations, self._data_to_plot))
 
     def plot(self):
+        """ Plot the data and show nicely."""
         plotter = self._plot_properties['function']
         color = self._define_colors()
-
-        self.ax = plotter(self._data_to_plot, color=color)
+        self.ax = plotter(self._data_to_plot, color=color, ax=self.ax)
+                
         if self.annotated:
             self.annotate()
 
         self.show_nicely()
 
     def show_nicely(self):
+        """ Make the plot look better, by removing fluff."""
 
         self.ax.set_frame_on(False)
 
@@ -426,6 +480,24 @@ class Visualization:
 
 
 def visualize(data, **kwargs):
+    """
+    Visualize data and return the visualization containing all attributes
+    
+    See Visualization for full information
+
+    Parameters
+    ----------
+    data : pd.Series or pd.DataFrame
+        The data to visualize
+    **kwargs 
+        See Visualization documentation
+
+    Returns
+    -------
+    vis : `cls::Visualization`
+        The visualiziation with all choices as attribtes that can be modified
+
+    """
     vis = Visualization(data, **kwargs)
     vis.plot()
     return vis
@@ -434,3 +506,4 @@ micompanyify = visualize
 
 if __name__ == '__main__':
     visualize(pd.Series([1, 3, 2]))
+    visualize(pd.Series([0.8, 0.1, 0.1]))

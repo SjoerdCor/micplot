@@ -28,6 +28,7 @@ def contrasting_text_color(colorname):
         return 'black'
     return 'white'
 
+
 def sort(data, sorting):
     # TODO: validata data is of type DataFrame or Series
     if sorting == 'original':

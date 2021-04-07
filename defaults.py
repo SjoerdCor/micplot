@@ -1,13 +1,9 @@
 import plotfunctions
 
-plots = {'bar': {'function': plotfunctions.plot_bar,
-                 'axes_with_ticks': ['y'],
-                 'orient': 'h',
-                 'len_axis': 0,
-                 },
-         }
-
+# COLORS
 HIGHLIGHT_COLOR = 'purple'
+BACKGROUND_COLOR = 'lightgray' # For non-highlighted datapoitns
+BENCHMARK_COLOR = 'gray' # For total of waterfall plot
 
 # ANNOTATION
 OFFSET_FRACTION = 0.025  # pct of plot to offset annotations

@@ -7,6 +7,9 @@ By using `visualize(data)`, where data is a pandas Series or pandas DataFrame,
 the user receives a Visualization object, with an Axis object as an attribute
 that contains a plot of the data
 """
+
+from itertools import cycle
+
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -17,11 +20,11 @@ import plotfunctions
 
 class Annotator:
     """Annotates a plot."""
-    
+
     def __init__(self, ax, orient, strfmt='.2f', text_alignment=None):
         """
         Initialize Annotator object.
-        
+
         Parameters
         ----------
         ax : matplotlib Axes object
@@ -40,7 +43,7 @@ class Annotator:
         """
         self.ax = ax
         if orient not in ['h', 'v']:
-            raise ValueError(f'orient must be "v" or "h", not {self.orient}')
+            raise ValueError(f'orient must be "v" or "h", not {orient}')
         self.orient = orient
         self.text_alignment = text_alignment
         self.strfmt = strfmt
@@ -48,29 +51,30 @@ class Annotator:
     def _determine_offset(self):
         """
         Calculate offset in x or y distance, depending on plot orientation.
-        
+
         By default is 2.5% of the plot width
-        
+
         Returns
         -------
         offset : float
             The offset in plot distance
 
         """
-        if self.orient == 'v':
+        if self.orient == 'h':
             lim_min, lim_max = self.ax.get_xlim()
         else:
-            lim_min, lim_max = self.ax.get_ylim()            
+            lim_min, lim_max = self.ax.get_ylim()
         plotsize = lim_max - lim_min
+
         offset =  defaults.OFFSET_FRACTION * plotsize
         return offset
 
     def _determine_alignments(self, value):
         """
         Determine text alignment of the annotation.
-        
+
         Determines it with a minimal chance of overlap with the plot
-        
+
         Parameters
         ----------
         value : float
@@ -80,7 +84,7 @@ class Annotator:
         -------
         ha : str
             Horizontal alignment
-        va : TYPE
+        va : str
             Vertical alignment
 
         """
@@ -125,7 +129,7 @@ class Annotator:
         y = index if self.orient == 'h' else value
         return (x, y)
 
-    def annotate(self, coordinates: pd.Series, display_values=None):
+    def annotate(self, coordinates: pd.Series, display_values=None, index_offset=0):
         """
         Annotate the axis.
 
@@ -135,6 +139,9 @@ class Annotator:
             The location of the values
         display_values : pd.Series, optional
             The label of each coordinate. The default is to plot the coordinate values.
+        index_offset : float, optional
+            How much to displace bars - useful when annotating multiple bars: they become
+            smaller, so we must align the numers
 
         Returns
         -------
@@ -147,25 +154,44 @@ class Annotator:
         offset = self._determine_offset()
 
         for i, (v, dv) in enumerate(zip(coordinates, display_values)):
-            xy = self._determine_xy_from_value(v, i)
-            
+            ind = i + index_offset
+            xy = self._determine_xy_from_value(v, ind)
+
             if v < 0:
                 v -= offset
             else:
                 v += offset
-            xytext = self._determine_xy_from_value(v, i)
+            xytext = self._determine_xy_from_value(v, ind)
             ha, va = self._determine_alignments(v)
             label = '{:{prec}}'.format(dv, prec=self.strfmt)
             self.ax.annotate(label, xy, xytext, va=va, ha=ha)
 
+    def annotate_dataframe(self, df: pd.DataFrame):
+        """
+        
 
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        for i, colname in enumerate(df):
+            index_offset = -0.5 + (i + 1) / (df.shape[1] + 2)
+            self.annotate(df[colname], index_offset=index_offset)
+        
 class Consultant:
     """Recommend plotting choices. """
 
     def recommend_plottype(self, data):
         """
         Determine plottype based on shape and content of data.
-        
+
         Based on MIcompany training
 
         Parameters
@@ -178,9 +204,9 @@ class Consultant:
         """
         if isinstance(data.index, pd.DatetimeIndex):
             if len(data) < defaults.LEN_LINEPLOT:
-                plottype = 'bar_timeseries'
+                plottype = 'vertical_bar'
             else:
-                plottype = 'line_timeseries'
+                plottype = 'line'
         elif isinstance(data, pd.Series):
             if utils.is_percentage_series(data):
                 plottype = 'waterfall'
@@ -202,7 +228,7 @@ class Consultant:
         data : pd.Series or pd.DataFrame
             The data which is plotted
         plottype : str, optional
-            The type of plot. If not filled, recommends it based on recommended plot type 
+            The type of plot. If not filled, recommends it based on recommended plot type
 
         Returns
         -------
@@ -211,17 +237,17 @@ class Consultant:
 
         """
         plottype = plottype or self.recommend_plottype(data)
-        
-        if (plottype in ['bar', 'waterfall']
+
+        if (plottype in ['bar', 'waterfall', 'vertical_bar']
             or (plottype == 'scatter' and len(data) <= defaults.LEN_ANNOTATE_SCATTER)):
             return True
-        
+
         return False
 
     def recommend_highlight(self):
         """
         Recommends which value(s) to highlight
-        
+
         By default, recommends the top value
 
         Returns
@@ -235,7 +261,7 @@ class Consultant:
     def recommend_sorting(self, data):
         """
         Recommends whether and how to sort the data
-        
+
         See `utils.sort` for the implementation of the sorting
 
         Parameters
@@ -254,11 +280,11 @@ class Consultant:
         elif isinstance(data, pd.DataFrame):
             return 'original'
         return 'ascending'
-    
+
     def recommend_stringformat(self, data):
         '''
         Determine label precision from data type
-        
+
         Parameters
         ----------
         data : pandas Dataframe or Series with data to label
@@ -272,9 +298,13 @@ class Consultant:
         else:
             strfmt = '.2f'
         return strfmt
+    
+    def recommend_highlight_type(self, data, plottype):
+        if isinstance(data, pd.Series) or plottype == 'scatter':
+            return 'row'
+        return 'column'
 
     # def recommend_choices(self, data):
-    #     # TODO: determine strfmt
     #     choices = {}
     #     choices['plottype'] = self.recommend_plottype(data)
     #     choices['annotated'] = self.recommend_annotation(choices['plottype'], data)
@@ -285,33 +315,40 @@ class Consultant:
 class Visualization:
     """
     Visualizes the data and hold all choices as attributes.
-    
+
     Fully customizable through its iniatilization and its attributes
     """
-    
+
     plots = {'bar': {'function': plotfunctions.plot_bar,
                  'axes_with_ticks': ['y'],
                  'orient': 'h',
-                 'len_axis': 0,
                  },
              'waterfall': {'function': plotfunctions.plot_waterfall,
                            'axes_with_ticks': ['y'],
                            'orient': 'h',
-                           'len_axis': 0
-                           }
+                           },
+             'vertical_bar': {'function': plotfunctions.plot_vertical_bar,
+                 'axes_with_ticks': ['x'],
+                 'orient': 'v',
+                 },
+             'line': {'function': plotfunctions.plot_line,
+                 'axes_with_ticks': ['x'],
+                 'orient': 'v',
+                 },
          }
 
-    
+
     def __init__(self, data,
                  plottype=None,
                  highlight=None,
                  highlight_color=defaults.HIGHLIGHT_COLOR,
+                 highlight_type=None,
                  sorting=None,
                  strfmt=None,
                  ):
         """
         Initialize the visualization.
-        
+
         Parameters
         ----------
         data : pd.Series or pd.DataFrame
@@ -322,6 +359,8 @@ class Visualization:
             Iterable of indices of the values which should be highlighted. By default, is top value
         highlight_color : str, optional
             Color str in which to highlight some values. The default is defaults.HIGHLIGHT_COLOR.
+        highlight_type : str, optional
+            Whether to highlight "row" or "column"
         sorting : str, optional
             Whether and how to sort the data. By default, is determined from type data
 
@@ -348,13 +387,14 @@ class Visualization:
         self.highlight = highlight
         self.highlight_color = highlight_color
         self.strfmt = strfmt or self.consultant.recommend_stringformat(self._data_to_plot)
-        
+
         self._plottype = self.consultant.recommend_plottype(self._data_to_plot)
         self.plottype = plottype
         self._data_to_plot = self.prepare_data()
         self.sorting = sorting
-
-        self.annotated = self.consultant.recommend_annotation(self._data_to_plot, self._plottype)
+        
+        self.highlight_type = highlight_type or self.consultant.recommend_highlight_type(self._data_to_plot, self.plottype)
+        self.annotated = self.consultant.recommend_annotation(self._data_to_plot, self.plottype)
 
     @property
     def plottype(self):
@@ -390,7 +430,7 @@ class Visualization:
         Parameters
         ----------
         new_highlight : Iterable
-            
+
         """
         if new_highlight is None:
             new_highlight = self.consultant.recommend_highlight()
@@ -422,6 +462,13 @@ class Visualization:
         # TODO: add user preference as an option
         self.annotated = self.consultant.recommend_annotation(self._data_to_plot, self.plottype)
 
+    def _find_len_properties(self):
+        axis_highlight_type = {'row': 0,
+                               'column': 1}
+        len_axis = axis_highlight_type[self.highlight_type]
+        len_properties = self._data_to_plot.shape[len_axis]
+        return len_properties
+
     def _define_colors(self):
         '''
         Return a list of colors with appropiate highlights.
@@ -430,21 +477,36 @@ class Visualization:
         -------
         color: list of len(data) with colors and appropriate highlights
         '''
+        len_colors = self._find_len_properties()
+        color = [defaults.BACKGROUND_COLOR] * len_colors
 
-        len_colors = self._data_to_plot.shape[self._plot_properties['len_axis']]
-        color = ['lightgray'] * len_colors
-        
         # Last bar is total, which should not be highlighted
         if self.plottype == 'waterfall':
-            color = color[:-1] 
-        
+            color = color[:-1]
+
         for h in self.highlight:
             color[h] = self.highlight_color
-        
+
         # Add darker shade for full bar
         if self.plottype == 'waterfall':
-            color += ['gray'] 
+            color += [defaults.BENCHMARK_COLOR]
         return color
+
+    def _define_linestyles(self):
+        possible_linestyles = ['-','--','-.',':']
+        linecycler_background = cycle(possible_linestyles)
+        linecycler_highlight = cycle(possible_linestyles)
+        linestyles = []
+        
+        len_axis = self._find_len_properties()
+        display(len_axis)
+        for i in range(len_axis):
+            linestyles.append(next(linecycler_background))
+        display(linestyles)
+        for h in self.highlight:
+            display(h)
+            linestyles[h] = next(linecycler_highlight)
+        return linestyles
 
     def annotate(self):
         """ Annotates values in self.ax"""
@@ -454,15 +516,23 @@ class Visualization:
             locations = self._data_to_plot + blank
         else:
             locations = self._data_to_plot
-        (Annotator(self.ax, self._plot_properties['orient'], strfmt=self.strfmt)
-         .annotate(locations, self._data_to_plot))
+
+        ann = Annotator(self.ax, self._plot_properties['orient'], strfmt=self.strfmt)
+    
+        if isinstance(self._data_to_plot, pd.Series):
+            ann.annotate(locations, self._data_to_plot)
+        else:
+            ann.annotate_dataframe(self._data_to_plot)
+    
 
     def plot(self):
         """ Plot the data and show nicely."""
         plotter = self._plot_properties['function']
         color = self._define_colors()
-        self.ax = plotter(self._data_to_plot, color=color, ax=self.ax)
-                
+        linestyles = self._define_linestyles()
+            
+        self.ax = plotter(self._data_to_plot, color=color, style=linestyles, ax=self.ax)
+
         if self.annotated:
             self.annotate()
 
@@ -473,23 +543,25 @@ class Visualization:
 
         self.ax.set_frame_on(False)
 
+        # TODO: format ticks better, especially for datetimes
         if 'x' not in self._plot_properties['axes_with_ticks']:
             self.ax.set_xticks([])
         if 'y' not in self._plot_properties['axes_with_ticks']:
             self.ax.set_yticks([])
-
+        
+        # TODO: stop legend from overlapping
 
 def visualize(data, **kwargs):
     """
     Visualize data and return the visualization containing all attributes
-    
+
     See Visualization for full information
 
     Parameters
     ----------
     data : pd.Series or pd.DataFrame
         The data to visualize
-    **kwargs 
+    **kwargs
         See Visualization documentation
 
     Returns
@@ -505,5 +577,22 @@ def visualize(data, **kwargs):
 micompanyify = visualize
 
 if __name__ == '__main__':
-    visualize(pd.Series([1, 3, 2]))
+    import numpy as np
+    visualize(pd.Series(np.random.rand(20)))
     visualize(pd.Series([0.8, 0.1, 0.1]))
+    size = 6
+    import numpy as np
+    data = 10*np.random.rand(size, 3)
+    test_data = pd.DataFrame(data, index=pd.date_range('20190101', periods=size))
+    visualize(test_data)
+    
+    size = 12
+    data = 10*np.random.rand(size, 3)
+    test_data = pd.DataFrame(data, index=pd.date_range('20190101', periods=size))
+    visualize(test_data)
+
+    size = 12
+    data = 10*np.random.rand(size, 5)
+    test_data = pd.DataFrame(data, index=pd.date_range('20190101', periods=size))
+    visualize(test_data, highlight=[-1, -2])
+

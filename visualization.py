@@ -165,7 +165,15 @@ class Annotator:
             ha, va = self._determine_alignments(v)
             label = '{:{prec}}'.format(dv, prec=self.strfmt)
             self.ax.annotate(label, xy, xytext, va=va, ha=ha)
+    def annotate_scatter(self, coordinates: pd.DataFrame, display_values=None):
+        offset = self._determine_offset()
+        
+        for label, x, y in zip(display_values, coordinates.iloc[:, 0], coordinates.iloc[:, 1]):
+            y2 = y + offset
+            self.ax.annotate(label, (x, y), (x, y2))
 
+            
+        
     def annotate_dataframe(self, df: pd.DataFrame):
         """
         
@@ -215,8 +223,10 @@ class Consultant:
         elif isinstance(data, pd.DataFrame):
             if data.apply(utils.is_percentage_series).all():
                 plottype = 'composition_comparison'
-            else:
+            elif data.shape[1] == 2:
                 plottype = 'scatter'
+            elif data.shape[1] == 3:
+                plottype = 'bubble'
         return plottype
 
     def recommend_annotation(self, data, plottype=None):
@@ -239,7 +249,7 @@ class Consultant:
         plottype = plottype or self.recommend_plottype(data)
 
         if (plottype in ['bar', 'waterfall', 'vertical_bar']
-            or (plottype == 'scatter' and len(data) <= defaults.LEN_ANNOTATE_SCATTER)):
+            or (plottype in ['scatter', 'bubble'] and len(data) <= defaults.LEN_ANNOTATE_SCATTER)):
             return True
 
         return False
@@ -300,7 +310,7 @@ class Consultant:
         return strfmt
     
     def recommend_highlight_type(self, data, plottype):
-        if isinstance(data, pd.Series) or plottype == 'scatter':
+        if isinstance(data, pd.Series) or plottype in ['scatter', 'bubble']:
             return 'row'
         return 'column'
 
@@ -335,6 +345,15 @@ class Visualization:
                  'axes_with_ticks': ['x'],
                  'orient': 'v',
                  },
+             'scatter': {'function': plotfunctions.plot_scatter,
+                 'axes_with_ticks': ['x', 'y'],
+                 'orient': 'v',
+                 },
+             'bubble': {'function': plotfunctions.plot_bubble,
+                 'axes_with_ticks': ['x', 'y'],
+                 'orient': 'v',
+                 },
+
          }
 
 
@@ -499,12 +518,9 @@ class Visualization:
         linestyles = []
         
         len_axis = self._find_len_properties()
-        display(len_axis)
         for i in range(len_axis):
             linestyles.append(next(linecycler_background))
-        display(linestyles)
         for h in self.highlight:
-            display(h)
             linestyles[h] = next(linecycler_highlight)
         return linestyles
 
@@ -522,7 +538,10 @@ class Visualization:
         if isinstance(self._data_to_plot, pd.Series):
             ann.annotate(locations, self._data_to_plot)
         else:
-            ann.annotate_dataframe(self._data_to_plot)
+            if self.plottype in ['scatter', 'bubble']:
+                ann.annotate_scatter(self._data_to_plot.iloc[:, :2], self._data_to_plot.index)
+            else:
+                ann.annotate_dataframe(self._data_to_plot)
     
 
     def plot(self):
@@ -530,7 +549,6 @@ class Visualization:
         plotter = self._plot_properties['function']
         color = self._define_colors()
         linestyles = self._define_linestyles()
-            
         self.ax = plotter(self._data_to_plot, color=color, style=linestyles, ax=self.ax)
 
         if self.annotated:
@@ -595,4 +613,9 @@ if __name__ == '__main__':
     data = 10*np.random.rand(size, 5)
     test_data = pd.DataFrame(data, index=pd.date_range('20190101', periods=size))
     visualize(test_data, highlight=[-1, -2])
-
+    
+    scatter_data = pd.DataFrame(np.random.rand(30, 2))
+    visualize(scatter_data)
+    
+    scatter_data = pd.DataFrame(np.random.rand(30, 3)) - 0.5
+    vis = visualize(scatter_data)    

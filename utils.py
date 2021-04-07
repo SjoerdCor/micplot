@@ -4,6 +4,7 @@ Created on Wed Mar 31 13:46:53 2021
 
 @author: Gebruiker
 """
+import re
 import math
 import matplotlib.colors
 
@@ -39,5 +40,13 @@ def sort(data, sorting):
         return data.sort_values()
     elif  sorting == 'descending':
         return data.sort_values(ascendng=False)
-    raise NotImplementError(f'Unknown sorting type `{sorting}`')
-        
+    raise NotImplementedError(f'Unknown sorting type `{sorting}`')
+
+      
+def extract_number(string: str):
+    found = re.search('\d+\.\d+', string)
+    if not found:
+        found = re.search('\.\d+', string)
+    if not found:
+        found = re.search('\d+', string)
+    return float(found.group())

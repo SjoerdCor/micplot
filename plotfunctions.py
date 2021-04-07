@@ -6,6 +6,10 @@ Created on Wed Mar 31 08:11:26 2021
 """
 
 import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+import utils
 
 def plot_bar(data, **kwargs):
     ax = data.plot(kind='barh', **kwargs)
@@ -70,3 +74,33 @@ def plot_vertical_bar(data, **kwargs):
 def plot_line(data, **kwargs):
     ax = data.plot(kind='line', **kwargs)
     return ax
+
+def plot_scatter(data, **kwargs):
+    x = data.columns[0]
+    y = data.columns[1]
+    
+    ax = data.plot(kind='scatter', x=x, y=y, **kwargs)
+    return ax
+
+def plot_bubble(data, **kwargs):
+    def calculate_legend_values(ax, scaler, strfmt='.2f'):
+        handles, labels = ax.collections[0].legend_elements(prop="sizes", alpha=0.6)
+        positions = [(utils.extract_number(label) - 10) / 4 for label in labels]
+        labels = ['{:{prec}}'.format(x, prec=strfmt) for x in scaler.inverse_transform(positions)]
+        return handles, labels
+
+    #TODO: add strfmt
+    x = data.columns[0]
+    y = data.columns[1]
+    scaler = StandardScaler()
+    rescaled_series = scaler.fit_transform(data.iloc[:, [2]]) * 4 + 10
+    size = pd.Series(np.squeeze(rescaled_series)).clip(1)
+    
+    ax = data.plot(kind='scatter', x=x, y=y, s=size, **kwargs)
+        
+    handles, labels = calculate_legend_values(ax, scaler)
+    legend = ax.legend(handles, labels, loc="upper right", title=data.columns[2])
+    return ax
+
+def plot_pie(data, **kwargs):
+    raise TypeError('A pie chart? Are you kidding me?')

@@ -393,7 +393,7 @@ class Visualization:
                  sorting=None,
                  annotated=None,
                  strfmt=None,
-
+                 **kwargs,
                  ):
         """
         Initialize the visualization.
@@ -420,6 +420,8 @@ class Visualization:
         strfmt : str, optional
             The format string, how to annotate the data. By default, this is inferred 
             from the data type
+        kwargs 
+            Passed to plt.subplots(), e.g. figsize
 
         Raises
         ------
@@ -434,7 +436,7 @@ class Visualization:
         # TODO: validate data is numeric
         self._data_to_plot = self.data.squeeze()
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(**kwargs)
         self.ax = ax
 
         self.consultant = Consultant()

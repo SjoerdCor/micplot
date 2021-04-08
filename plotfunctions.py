@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Mar 31 08:11:26 2021
-
-@author: Gebruiker
-"""
+"""Separate functions for each plottype of visualization."""
 
 import pandas as pd
 
@@ -44,7 +40,6 @@ def plot_waterfall(data, buildup=False, **kwargs):
         Returns
         -------
         values from which steps can be plotted
-            DESCRIPTION.
 
         """
         index = []

@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Mar 31 13:46:53 2021
-
-@author: Gebruiker
-"""
+"""Utility functions to help plotting."""
 import re
 import math
 import matplotlib.colors

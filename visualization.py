@@ -21,7 +21,7 @@ import plotfunctions
 class Annotator:
     """Annotates a plot."""
 
-    def __init__(self, ax, orient, strfmt='.2f', text_alignment=None):
+    def __init__(self, ax, orient, strfmt='.2f', text_alignment=None, text_color=None):
         """
         Initialize Annotator object.
 
@@ -31,10 +31,13 @@ class Annotator:
             the Axes that should be annotated
         orient : str
             The orientation of the graphic; determines direction of offset
-        text_alignment : str, optional
-            How to align the annotation. The default is None: determine from plot
         strfmt : str, optional
             Format specifier for the labels. The default is '.2f'.
+        text_alignment : str, optional
+            How to align the annotation. The default is None: determine from plot
+        text_color : str, optionnal
+            Color in which to annotate values. The default is matplotlib default
+
 
         Returns
         -------
@@ -45,8 +48,10 @@ class Annotator:
         if orient not in ['h', 'v']:
             raise ValueError(f'orient must be "v" or "h", not {orient}')
         self.orient = orient
-        self.text_alignment = text_alignment
         self.strfmt = strfmt
+        self.text_alignment = text_alignment
+        self.text_color = text_color
+
 
     def _determine_offset(self):
         """
@@ -164,37 +169,56 @@ class Annotator:
             xytext = self._determine_xy_from_value(v, ind)
             ha, va = self._determine_alignments(v)
             label = '{:{prec}}'.format(dv, prec=self.strfmt)
-            self.ax.annotate(label, xy, xytext, va=va, ha=ha)
-    def annotate_scatter(self, coordinates: pd.DataFrame, display_values=None):
-        offset = self._determine_offset()
-        
-        for label, x, y in zip(display_values, coordinates.iloc[:, 0], coordinates.iloc[:, 1]):
-            y2 = y + offset
-            self.ax.annotate(label, (x, y), (x, y2))
+            self.ax.annotate(label, xy, xytext, va=va, ha=ha, color=self.text_color)
 
-            
-        
-    def annotate_dataframe(self, df: pd.DataFrame):
+    def annotate_scatter(self, coordinates: pd.DataFrame, display_values):
         """
-        
+        Annotate scatter plot from its coordinates.
+
+        Always places labels above the data points
+
 
         Parameters
         ----------
-        df : pd.DataFrame
-            DESCRIPTION.
+        coordinates : pd.DataFrame
+            First column contains x values, second column contains y values.
+        display_values : Iterable
+            Labels to plot above points. Must be of equal length of the coordinates
 
         Returns
         -------
         None.
 
         """
-        
+        offset = self._determine_offset()
+
+        for label, x, y in zip(display_values, coordinates.iloc[:, 0], coordinates.iloc[:, 1]):
+            y2 = y + offset
+            self.ax.annotate(label, (x, y), (x, y2))
+
+    def annotate_dataframe(self, df: pd.DataFrame):
+        """
+        Annotate each series of the DataFrame.
+
+        Corrects for the fact that with multiple columns, bars become smaller
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The DataFrame of which each series will be annotated.
+
+        Returns
+        -------
+        None.
+
+        """
+
         for i, colname in enumerate(df):
             index_offset = -0.5 + (i + 1) / (df.shape[1] + 2)
             self.annotate(df[colname], index_offset=index_offset)
-        
+
 class Consultant:
-    """Recommend plotting choices. """
+    """Recommend plotting choices."""
 
     def recommend_plottype(self, data):
         """
@@ -248,7 +272,7 @@ class Consultant:
         """
         plottype = plottype or self.recommend_plottype(data)
 
-        if (plottype in ['bar', 'waterfall', 'vertical_bar']
+        if (plottype in ['bar', 'waterfall', 'vertical_bar', 'composition_comparison']
             or (plottype in ['scatter', 'bubble'] and len(data) <= defaults.LEN_ANNOTATE_SCATTER)):
             return True
 
@@ -302,15 +326,16 @@ class Consultant:
         if (isinstance(data, pd.DataFrame) and data.apply(utils.is_percentage_series).all()) or\
             (isinstance(data, pd.Series) and utils.is_percentage_series(data)):
             strfmt = '.1%'
-        elif (isinstance(data, pd.DataFrame) and data.apply(pd.api.types.is_integer_dtype).all()) or\
-            (isinstance(data, pd.Series) and pd.api.types.is_integer_dtype(data)):
+        elif ((isinstance(data, pd.DataFrame) and data.apply(pd.api.types.is_integer_dtype).all())
+              or  (isinstance(data, pd.Series) and pd.api.types.is_integer_dtype(data))):
             strfmt = 'd'
         else:
             strfmt = '.2f'
         return strfmt
-    
+
     def recommend_highlight_type(self, data, plottype):
-        if isinstance(data, pd.Series) or plottype in ['scatter', 'bubble']:
+        row_plottypes= ['scatter', 'bubble', 'composition_comparison']
+        if isinstance(data, pd.Series) or plottype in row_plottypes:
             return 'row'
         return 'column'
 
@@ -342,7 +367,7 @@ class Visualization:
                  'orient': 'v',
                  },
              'line': {'function': plotfunctions.plot_line,
-                 'axes_with_ticks': ['x'],
+                 'axes_with_ticks': ['x', 'y'],
                  'orient': 'v',
                  },
              'scatter': {'function': plotfunctions.plot_scatter,
@@ -353,7 +378,10 @@ class Visualization:
                  'axes_with_ticks': ['x', 'y'],
                  'orient': 'v',
                  },
-
+             'pie': {'function': plotfunctions.plot_pie},
+             'composition_comparison': {'function': plotfunctions.plot_composition_comparison,
+                                        'axes_with_ticks': ['y'],
+                                        'orient': 'h'}
          }
 
 
@@ -363,7 +391,9 @@ class Visualization:
                  highlight_color=defaults.HIGHLIGHT_COLOR,
                  highlight_type=None,
                  sorting=None,
+                 annotated=None,
                  strfmt=None,
+
                  ):
         """
         Initialize the visualization.
@@ -373,15 +403,23 @@ class Visualization:
         data : pd.Series or pd.DataFrame
             The data that is to be visualized
         plottype : str, optional
-            The type of plot to use, must be in []. By default, this is inferred from the data(type)
+            The type of plot to use, one of ["bar", "waterfall", "vertical_bar",
+            "line", "scatter", "bubble", "pie" or "composition_comparison"].
+            By default, this is inferred from the data(type)
         highlight : iterable, optional
             Iterable of indices of the values which should be highlighted. By default, is top value
         highlight_color : str, optional
             Color str in which to highlight some values. The default is defaults.HIGHLIGHT_COLOR.
         highlight_type : str, optional
-            Whether to highlight "row" or "column"
+            Whether to highlight "row" or "column". By default, this is determined from the data
         sorting : str, optional
             Whether and how to sort the data. By default, is determined from type data
+        annotated : bool, optional
+            Whether values should also be displayed in text. By default, this is
+            inferred from the data
+        strfmt : str, optional
+            The format string, how to annotate the data. By default, this is inferred 
+            from the data type
 
         Raises
         ------
@@ -411,9 +449,15 @@ class Visualization:
         self.plottype = plottype
         self._data_to_plot = self.prepare_data()
         self.sorting = sorting
-        
-        self.highlight_type = highlight_type or self.consultant.recommend_highlight_type(self._data_to_plot, self.plottype)
-        self.annotated = self.consultant.recommend_annotation(self._data_to_plot, self.plottype)
+
+        self.highlight_type = (highlight_type
+                               or self.consultant.recommend_highlight_type(self._data_to_plot,
+                                                                           self.plottype)
+                               )
+        self.annotated = (annotated
+                          or self.consultant.recommend_annotation(self._data_to_plot,
+                                                                  self.plottype)
+                          )
 
     @property
     def plottype(self):
@@ -464,11 +508,22 @@ class Visualization:
 
     @sorting.setter
     def sorting(self, new_sorting):
+        """
+        Changes how to sort the data.
+
+        Parameters
+        ----------
+        new_sorting : str, optional
+            Must be in ['original', 'index', 'ascending', 'descending']
+        """
         if new_sorting is None:
             new_sorting = self.consultant.recommend_sorting(self._data_to_plot)
         self._new_sorting = new_sorting
 
     def prepare_data(self):
+        """
+        Make data uniform and plotworthy.
+        """
         new_data = (self.data
                     .squeeze() # DataFrame with single column should be treated as Series
                     .pipe(utils.sort, self.sorting)
@@ -512,37 +567,58 @@ class Visualization:
         return color
 
     def _define_linestyles(self):
-        possible_linestyles = ['-','--','-.',':']
+        possible_linestyles = ['-', '--', '-.', ':']
         linecycler_background = cycle(possible_linestyles)
         linecycler_highlight = cycle(possible_linestyles)
         linestyles = []
-        
+
         len_axis = self._find_len_properties()
-        for i in range(len_axis):
+        for _ in range(len_axis):
             linestyles.append(next(linecycler_background))
         for h in self.highlight:
             linestyles[h] = next(linecycler_highlight)
         return linestyles
 
     def annotate(self):
-        """ Annotates values in self.ax"""
+        """ Annotates values in self.ax."""
         if self.plottype == 'waterfall':
             blank = self._data_to_plot.cumsum().shift(1).fillna(0)
             blank.loc['Total'] = 0
             locations = self._data_to_plot + blank
+            display_values = self._data_to_plot
+
+        elif self.plottype == 'composition_comparison':
+            data_begin = self._data_to_plot.cumsum().shift().fillna(0)
+            data_end = self._data_to_plot.cumsum()
+            if len(self.highlight) > 1:
+                raise TypeError('Can only highlight one line in composition comparison')
+
+            locations = data_begin.add(data_end).div(2).iloc[self.highlight[0]]
+            display_values = self._data_to_plot.iloc[self.highlight[0]]
         else:
             locations = self._data_to_plot
+            display_values = self._data_to_plot
 
-        ann = Annotator(self.ax, self._plot_properties['orient'], strfmt=self.strfmt)
-    
-        if isinstance(self._data_to_plot, pd.Series):
-            ann.annotate(locations, self._data_to_plot)
+        if self.plottype == 'composition_comparison':
+            # With a composition comparison, annotating is done _in_ the plot
+            # intead of just outside it
+            text_color = utils.contrasting_text_color(self.highlight_color)
+            text_alignment = 'center'
+        else:
+            text_color = None
+            text_alignment = None
+
+        ann = Annotator(self.ax, self._plot_properties['orient'], strfmt=self.strfmt,
+                        text_color=text_color, text_alignment=text_alignment)
+
+        if isinstance(display_values, pd.Series):
+            ann.annotate(locations, display_values)
         else:
             if self.plottype in ['scatter', 'bubble']:
                 ann.annotate_scatter(self._data_to_plot.iloc[:, :2], self._data_to_plot.index)
             else:
                 ann.annotate_dataframe(self._data_to_plot)
-    
+
 
     def plot(self):
         """ Plot the data and show nicely."""
@@ -562,12 +638,27 @@ class Visualization:
         self.ax.set_frame_on(False)
 
         # TODO: format ticks better, especially for datetimes
+
         if 'x' not in self._plot_properties['axes_with_ticks']:
             self.ax.set_xticks([])
         if 'y' not in self._plot_properties['axes_with_ticks']:
             self.ax.set_yticks([])
+
+        # Plot contains legend
+        if (isinstance(self._data_to_plot, pd.DataFrame)
+            # Legend is fixed in side plotting function
+            and self.plottype not in ['scatter', 'bubble']):
+            if self.highlight_type == 'row':
+                title = self._data_to_plot.index.name
+            else:
+                title = self._data_to_plot.columns.name
+            utils.move_legend_outside_plot(self.ax, title=title)
         
-        # TODO: stop legend from overlapping
+        if isinstance(self._data_to_plot, pd.Series):
+            if self._plot_properties['orient'] == 'v' or self.plottype == 'waterfall':
+                self.ax.set_ylabel(self._data_to_plot.name)
+            else:
+                self.ax.set_xlabel(self._data_to_plot.name)               
 
 def visualize(data, **kwargs):
     """
@@ -593,29 +684,3 @@ def visualize(data, **kwargs):
     return vis
 
 micompanyify = visualize
-
-if __name__ == '__main__':
-    import numpy as np
-    visualize(pd.Series(np.random.rand(20)))
-    visualize(pd.Series([0.8, 0.1, 0.1]))
-    size = 6
-    import numpy as np
-    data = 10*np.random.rand(size, 3)
-    test_data = pd.DataFrame(data, index=pd.date_range('20190101', periods=size))
-    visualize(test_data)
-    
-    size = 12
-    data = 10*np.random.rand(size, 3)
-    test_data = pd.DataFrame(data, index=pd.date_range('20190101', periods=size))
-    visualize(test_data)
-
-    size = 12
-    data = 10*np.random.rand(size, 5)
-    test_data = pd.DataFrame(data, index=pd.date_range('20190101', periods=size))
-    visualize(test_data, highlight=[-1, -2])
-    
-    scatter_data = pd.DataFrame(np.random.rand(30, 2))
-    visualize(scatter_data)
-    
-    scatter_data = pd.DataFrame(np.random.rand(30, 3)) - 0.5
-    vis = visualize(scatter_data)    

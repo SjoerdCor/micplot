@@ -21,8 +21,9 @@ def is_percentage_series(series):
 def contrasting_text_color(colorname):
     '''
     Calculates whether text on top of this color should be in black or white
-    
-    # TODO: Add source Taken from ... 
+
+    Taken from https://stackoverflow.com/questions/3942878
+    /how-to-decide-font-color-in-white-or-black-depending-on-background-color
     '''
     red, green, blue, alpha = matplotlib.colors.to_rgba(colorname)
     if (red*0.299 + green*0.587 + blue*0.114) > 0.6:
@@ -31,6 +32,17 @@ def contrasting_text_color(colorname):
 
 
 def sort(data, sorting):
+    """
+    Sort data based on sorting parameter.
+
+    Parameters
+    ----------
+    data : pd.Series or pd.DataFrame
+        Data to be sorted
+    sorting : str
+        How to sort data, must be one of ['original', 'index', 'ascending', 'descending']
+
+    """
     # TODO: validata data is of type DataFrame or Series
     if sorting == 'original':
         return data
@@ -42,11 +54,94 @@ def sort(data, sorting):
         return data.sort_values(ascendng=False)
     raise NotImplementedError(f'Unknown sorting type `{sorting}`')
 
-      
+
 def extract_number(string: str):
+    """
+    Extract first float from text.
+
+    Parameters
+    ----------
+    string : str
+        String that contains a number.
+
+    Returns
+    -------
+    number : float
+        The extracted float
+
+    """
     found = re.search('\d+\.\d+', string)
     if not found:
         found = re.search('\.\d+', string)
     if not found:
         found = re.search('\d+', string)
-    return float(found.group())
+    number = float(found.group())
+    return number
+
+
+def move_legend_outside_plot(ax, **kwargs):
+    """
+    Draw legend outside of plot area.
+
+    Plot area is decreased by 20% to make room for the legend
+
+    Parameters
+    ----------
+    ax : The axis for which the legend must be draw
+
+    kwargs are passed to the legend
+    """
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height * 0.8])
+
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), **kwargs)
+
+
+class SizeScaler:
+    """ Transform numbers to numbers appropriate for scatter plot marker sizes."""
+
+    def __init__(self, factor=8):
+        """
+        Set up the scaler.
+
+        Parameters
+        ----------
+        factor : float, optional
+            Defines how much difference there will be in sizes based on difference in value
+
+        Returns
+        -------
+        None.
+
+        """
+        self.factor = factor
+
+        self.addition = None
+        self.mean = None
+        self.std = None
+
+    def fit(self, data):
+        """Learn transformation from data value to marker size."""
+
+        self.mean = data.mean()
+        self.std = data.std()
+
+        min_val = ((data - data.mean()) / data.std() * self.factor).min()
+
+        self.addition = -1 * min_val + 7
+
+    def transform(self, data):
+        """Transform data points to marker sizes."""
+
+        if any(value is None for value in [self.mean, self.std, self.addition]):
+            raise ValueError('Scaler not fitted yet')
+        return (data - self.mean) / self.std * self.factor + self.addition
+
+    def fit_transform(self, data):
+        """First fit, then transform data."""
+        self.fit(data)
+        return self.transform(data)
+
+    def inverse_transform(self, data):
+        """Transform marker size to data value."""
+        return (data - self.addition) / self.factor * self.std + self.mean

@@ -47,7 +47,7 @@ def plot_waterfall(data, buildup=False, **kwargs):
         bar_width = 0.25
         for i, (v, v_last) in enumerate(zip(blank, blank.shift(-1))):
             index.extend([i + bar_width, i, i - bar_width])
-            # None assures bars are not connected to theirselves
+            # None assures bars are not connected to themselves
             values.extend([v, None, v_last])
         return pd.Series(values, index=index)
 

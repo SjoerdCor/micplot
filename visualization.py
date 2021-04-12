@@ -413,7 +413,11 @@ class Visualization:
         highlight_type : str, optional
             Whether to highlight "row" or "column". By default, this is determined from the data
         sorting : str, optional
-            Whether and how to sort the data. By default, is determined from type data
+            Whether and how to sort the data. By default, is determined from type data. Can be
+            - 'original': do not sort the data
+            - 'index': sort the index of the data ascending
+            - 'ascending': sort data ascending
+            - 'descending': sort data descending
         annotated : bool, optional
             Whether values should also be displayed in text. By default, this is
             inferred from the data

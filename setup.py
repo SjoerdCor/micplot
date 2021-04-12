@@ -5,9 +5,9 @@ with open("README/README.md", "r") as fh:
 
 setuptools.setup(
     name="micplot", 
-    version="0.0.1",
+    version="0.1.0",
     author="Sjoerd Cornelissen",
-    description="A small example package",
+    description="Effective visualization with one line of code",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/SjoerdCor/micplot",

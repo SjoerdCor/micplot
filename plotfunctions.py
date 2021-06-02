@@ -3,7 +3,7 @@
 
 import pandas as pd
 
-import utils
+from micplot import utils
 
 def plot_bar(data, **kwargs):
     """ Plot bar chart."""

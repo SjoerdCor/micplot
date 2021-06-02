@@ -13,10 +13,7 @@ from itertools import cycle
 import pandas as pd
 import matplotlib.pyplot as plt
 
-import defaults
-import utils
-import plotfunctions
-
+from micplot import defaults, utils, plotfunctions
 
 class Annotator:
     """Annotates a plot."""
@@ -255,14 +252,15 @@ class Consultant:
 
     def recommend_annotation(self, data, plottype=None):
         """
-        Recommends whether to annotate a plot
-
+        Recommends whether to annotate a plot.
+        
         Parameters
         ----------
         data : pd.Series or pd.DataFrame
             The data which is plotted
         plottype : str, optional
-            The type of plot. If not filled, recommends it based on recommended plot type
+            The type of plot. If not filled, recommends it based on recommended
+            plot type
 
         Returns
         -------

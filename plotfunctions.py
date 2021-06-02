@@ -56,6 +56,7 @@ def plot_waterfall(data, buildup=False, **kwargs):
     blank = data.cumsum().shift(1).fillna(0)
 
     # This is only to get the steps right - it will later correctly be set to 0
+    # TODO: this is not allowed if the index is Categorical <- make sure it's not or add category?
     blank.loc["Total"] = data.loc['Total']
     step = define_steps(blank)
 

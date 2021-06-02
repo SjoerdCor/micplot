@@ -530,7 +530,7 @@ class Visualization:
         """
         if new_sorting is None:
             new_sorting = self.consultant.recommend_sorting(self._data_to_plot)
-        self._new_sorting = new_sorting
+        self._sorting = new_sorting
 
     def prepare_data(self):
         """
@@ -541,6 +541,7 @@ class Visualization:
                     .pipe(utils.sort, self.sorting)
                     )
         if self.plottype == 'waterfall':
+            # TODO: this is not allowed if the index is Categorical <- make sure it's not or add category?
             new_data.loc['Total'] = new_data.sum()
         return new_data
 

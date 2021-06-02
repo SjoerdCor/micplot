@@ -30,7 +30,7 @@ plt.show()
 
 
     
-![PNG](/readme/output_3_0.PNG)
+![PNG](README/output_3_0.png)
     
 
 
@@ -56,7 +56,7 @@ plt.show()
 
 
     
-![PNG](/readme/output_5_0.PNG)
+![PNG](README/output_5_0.PNG)
     
 
 
@@ -72,7 +72,7 @@ plt.show()
 
 
     
-![PNG](/readme/output_7_0.PNG)
+![PNG](README/output_7_0.PNG)
     
 
 
@@ -165,7 +165,7 @@ plt.show()
 
 
     
-![PNG](/readme/output_11_0.PNG)
+![PNG](README/output_11_0.PNG)
     
 
 
@@ -190,13 +190,13 @@ plt.show()
 
 
     
-![PNG](/readme/output_14_0.PNG)
+![PNG](README/output_14_0.PNG)
     
 
 
 
     
-![PNG](/readme/output_14_1.PNG)
+![PNG](README/output_14_1.PNG)
     
 
 
@@ -216,13 +216,13 @@ plt.show()
 
 
     
-![PNG](/readme/output_16_0.PNG)
+![PNG](README/output_16_0.PNG)
     
 
 
 
     
-![PNG](/readme/output_16_1.PNG)
+![PNG](README/output_16_1.PNG)
     
 
 
@@ -236,7 +236,7 @@ plt.show()
 
 
     
-![PNG](/readme/output_18_0.PNG)
+![PNG](README/output_18_0.PNG)
     
 
 
@@ -250,7 +250,7 @@ plt.show()
 
 
     
-![PNG](/readme/output_20_0.PNG)
+![PNG](README/output_20_0.PNG)
     
 
 
@@ -264,7 +264,7 @@ plt.show()
 
 
     
-![PNG](/readme/output_22_0.PNG)
+![PNG](README/output_22_0.PNG)
     
 
 
@@ -335,7 +335,7 @@ vis = micplot.visualize(data)
 
 
     
-![PNG](/readme/output_25_0.PNG)
+![PNG](README/output_25_0.PNG)
     
 
 
@@ -384,6 +384,6 @@ micplot.visualize(df['Embarked'].value_counts(), plottype='pie')
 
 
     
-![PNG](/readme/output_27_1.PNG)
+![PNG](README/output_27_1.PNG)
     
 

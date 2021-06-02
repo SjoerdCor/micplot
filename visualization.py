@@ -347,7 +347,7 @@ class Consultant:
 
 class Visualization:
     """
-    Visualizes the data and hold all choices as attributes.
+    Visualize the data and hold all choices as attributes.
 
     Fully customizable through its iniatilization and its attributes
     """
@@ -401,9 +401,16 @@ class Visualization:
         data : pd.Series or pd.DataFrame
             The data that is to be visualized
         plottype : str, optional
-            The type of plot to use, one of ["bar", "waterfall", "vertical_bar",
-            "line", "scatter", "bubble", "pie" or "composition_comparison"].
-            By default, this is inferred from the data(type)
+            The type of plot to use. By default, this is inferred from the data(type). 
+            Must be one of:
+                - 'bar'
+                - 'vertical_bar'
+                - 'waterfall'
+                - 'line'
+                - 'scatter'
+                - 'bubble'
+                - 'pie'
+                - 'composition_comparison'
         highlight : iterable, optional
             Iterable of indices of the values which should be highlighted. By default, is top value
         highlight_color : str, optional
@@ -411,7 +418,8 @@ class Visualization:
         highlight_type : str, optional
             Whether to highlight "row" or "column". By default, this is determined from the data
         sorting : str, optional
-            Whether and how to sort the data. By default, is determined from type data. Can be
+            Whether and how to sort the data. By default, is determined from the data (type)
+            Must be one of:
             - 'original': do not sort the data
             - 'index': sort the index of the data ascending
             - 'ascending': sort data ascending

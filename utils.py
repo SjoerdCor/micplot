@@ -125,12 +125,14 @@ class SizeScaler:
         min_val = ((data - data.mean()) / data.std() * self.factor).min()
 
         self.addition = -1 * min_val + 7
+    
+    def _check_is_fitted(self):
+        if any(value is None for value in [self.mean, self.std, self.addition]):
+            raise ValueError('Scaler not fitted yet')
 
     def transform(self, data):
         """Transform data points to marker sizes."""
-
-        if any(value is None for value in [self.mean, self.std, self.addition]):
-            raise ValueError('Scaler not fitted yet')
+        self._check_is_fitted()
         return (data - self.mean) / self.std * self.factor + self.addition
 
     def fit_transform(self, data):
@@ -140,4 +142,5 @@ class SizeScaler:
 
     def inverse_transform(self, data):
         """Transform marker size to data value."""
+        self._check_is_fitted()
         return (data - self.addition) / self.factor * self.std + self.mean

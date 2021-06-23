@@ -248,6 +248,8 @@ class Consultant:
                 plottype = 'scatter'
             elif data.shape[1] == 3:
                 plottype = 'bubble'
+            else:
+                return 'bar'
         return plottype
 
     def recommend_annotation(self, data, plottype=None):
@@ -337,6 +339,11 @@ class Consultant:
             return 'row'
         return 'column'
 
+    def recommend_reference_line(self, plottype):
+        if plottype == 'bar':
+            return ['mean']
+        else:
+            return (,)
     # def recommend_choices(self, data):
     #     choices = {}
     #     choices['plottype'] = self.recommend_plottype(data)
@@ -391,6 +398,7 @@ class Visualization:
                  sorting=None,
                  annotated=None,
                  strfmt=None,
+                 reference_lines=None
                  **kwargs,
                  ):
         """
@@ -440,10 +448,10 @@ class Visualization:
 
         """
         # TODO: make data property
-        self.data = data
         if not isinstance(data, pd.DataFrame) and not isinstance(data, pd.Series):
             raise TypeError(f'Data is not of type Series or DataFrame, but type {type(data)}')
         # TODO: validate data is numeric
+        self.data = data
         self._data_to_plot = self.data.squeeze()
 
         fig, ax = plt.subplots(**kwargs)
@@ -470,6 +478,10 @@ class Visualization:
                           or self.consultant.recommend_annotation(self._data_to_plot,
                                                                   self.plottype)
                           )
+        
+        self.reference_lines = (reference_lines
+                                or self.consultant.recommend_reference_line(self.plottype)
+                                )
 
     @property
     def plottype(self):
@@ -531,6 +543,24 @@ class Visualization:
         if new_sorting is None:
             new_sorting = self.consultant.recommend_sorting(self._data_to_plot)
         self._sorting = new_sorting
+        
+    @property
+    def reference_lines(self):
+        return self._reference_lines
+
+    @reference_lines.setter
+    def reference_lines(self, new_reference_lines):
+        """
+        Changes how to sort the data.
+
+        Parameters
+        ----------
+        new_sorting : str, optional
+            Must be in ['original', 'index', 'ascending', 'descending']
+        """
+        if new_reference_lines is None:
+            new_reference_lines = self.consultant.recommend_reference_line(self.plottype)
+        self._sorting = new_reference_lines
 
     def prepare_data(self):
         """
@@ -539,6 +569,7 @@ class Visualization:
         new_data = (self.data
                     .squeeze() # DataFrame with single column should be treated as Series
                     .pipe(utils.sort, self.sorting)
+                    .copy() # Never modify the original data
                     )
         if self.plottype == 'waterfall':
             # TODO: this is not allowed if the index is Categorical <- make sure it's not or add category?
@@ -632,14 +663,38 @@ class Visualization:
             else:
                 ann.annotate_dataframe(self._data_to_plot)
 
-
+    def add_reference_line(self, value='mean', text=None, c='k', **kwargs):
+        if isinstance(value, float) or isinstance(value, int):
+            ref_val = value
+        else:
+            ref_val = self._data_to_plot.agg(value)
+            
+        if self._plot_properties['orient'] == 'h':
+            line = self.ax.axvline            
+        else:
+            line = self.ax.axhline
+        
+        line(ref_val, c=c, ls='--')
+        
+        
+        annotation = '{:{prec}}'.format(ref_val, prec=self.strfmt)
+        if text is not None:
+            annotation += f', {text}'
+        elif isinstance(value, str):
+            annotation += f', {value}'
+        self.ax.annotate(annotation, annot_xy, annot_xy_text, c=c)
+        return self
+    
     def plot(self):
         """ Plot the data and show nicely."""
         plotter = self._plot_properties['function']
         color = self._define_colors()
         linestyles = self._define_linestyles()
         self.ax = plotter(self._data_to_plot, color=color, style=linestyles, ax=self.ax)
-
+        
+        for v in self.reference_lines:
+            self.add_reference_line(v)
+        
         if self.annotated:
             self.annotate()
 
@@ -650,7 +705,7 @@ class Visualization:
 
         self.ax.set_frame_on(False)
 
-        # TODO: format ticks better, especially for datetimes
+        # TODO: format ticks better, for datetimes and integers
 
         if 'x' not in self._plot_properties['axes_with_ticks']:
             self.ax.set_xticks([])
@@ -668,10 +723,11 @@ class Visualization:
             utils.move_legend_outside_plot(self.ax, title=title)
         
         if isinstance(self._data_to_plot, pd.Series):
+            name = self._data_to_plot.name or self._data_to_plot.index.name
             if self._plot_properties['orient'] == 'v' or self.plottype == 'waterfall':
-                self.ax.set_ylabel(self._data_to_plot.name)
+                self.ax.set_ylabel(name)
             else:
-                self.ax.set_xlabel(self._data_to_plot.name)               
+                self.ax.set_xlabel(name)               
 
 def visualize(data, **kwargs):
     """
@@ -689,7 +745,7 @@ def visualize(data, **kwargs):
     Returns
     -------
     vis : `cls::Visualization`
-        The visualiziation with all choices as attribtes that can be modified
+        The visualiziation with all choices as attributes that can be modified
 
     """
     vis = Visualization(data, **kwargs)

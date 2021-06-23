@@ -255,7 +255,7 @@ class Consultant:
     def recommend_annotation(self, data, plottype=None):
         """
         Recommends whether to annotate a plot.
-        
+
         Parameters
         ----------
         data : pd.Series or pd.DataFrame
@@ -311,7 +311,7 @@ class Consultant:
         """
         if isinstance(data.index, pd.DatetimeIndex):
             return 'index'
-        elif isinstance(data, pd.DataFrame):
+        if isinstance(data, pd.DataFrame):
             return 'original'
         return 'ascending'
 
@@ -342,8 +342,7 @@ class Consultant:
     def recommend_reference_line(self, plottype):
         if plottype == 'bar':
             return ['mean']
-        else:
-            return (,)
+        return []
     # def recommend_choices(self, data):
     #     choices = {}
     #     choices['plottype'] = self.recommend_plottype(data)
@@ -398,7 +397,7 @@ class Visualization:
                  sorting=None,
                  annotated=None,
                  strfmt=None,
-                 reference_lines=None
+                 reference_lines=None,
                  **kwargs,
                  ):
         """
@@ -409,7 +408,7 @@ class Visualization:
         data : pd.Series or pd.DataFrame
             The data that is to be visualized
         plottype : str, optional
-            The type of plot to use. By default, this is inferred from the data(type). 
+            The type of plot to use. By default, this is inferred from the data(type).
             Must be one of:
                 - 'bar'
                 - 'vertical_bar'
@@ -436,9 +435,9 @@ class Visualization:
             Whether values should also be displayed in text. By default, this is
             inferred from the data
         strfmt : str, optional
-            The format string, how to annotate the data. By default, this is inferred 
+            The format string, how to annotate the data. By default, this is inferred
             from the data type
-        kwargs 
+        kwargs
             Passed to plt.subplots(), e.g. figsize
 
         Raises
@@ -478,7 +477,6 @@ class Visualization:
                           or self.consultant.recommend_annotation(self._data_to_plot,
                                                                   self.plottype)
                           )
-        
         self.reference_lines = (reference_lines
                                 or self.consultant.recommend_reference_line(self.plottype)
                                 )
@@ -543,7 +541,7 @@ class Visualization:
         if new_sorting is None:
             new_sorting = self.consultant.recommend_sorting(self._data_to_plot)
         self._sorting = new_sorting
-        
+
     @property
     def reference_lines(self):
         return self._reference_lines
@@ -560,7 +558,7 @@ class Visualization:
         """
         if new_reference_lines is None:
             new_reference_lines = self.consultant.recommend_reference_line(self.plottype)
-        self._sorting = new_reference_lines
+        self._reference_lines = new_reference_lines
 
     def prepare_data(self):
         """
@@ -663,20 +661,36 @@ class Visualization:
             else:
                 ann.annotate_dataframe(self._data_to_plot)
 
-    def add_reference_line(self, value='mean', text=None, c='k', **kwargs):
-        if isinstance(value, float) or isinstance(value, int):
+    def add_reference_line(self, value='mean', text: str = None, c: str = 'k'):
+        """
+        Add dashed reference line to visualizaiton
+
+        Parameters
+        ----------
+        value : number or aggregation method on pd.Series/pd.DataFrame
+            The default is 'mean'.
+        text : str, optional
+            description of what the vlaue represents. The default is None.
+        c : str, optional
+            color of the reference value. The default is 'k'.
+        """
+        if isinstance(value, (float, int)):
             ref_val = value
         else:
             ref_val = self._data_to_plot.agg(value)
-            
+
         if self._plot_properties['orient'] == 'h':
-            line = self.ax.axvline            
+            line = self.ax.axvline
+            annot_xy = (ref_val, 0)
+            annot_xy_text = (ref_val * 1.02, 0.1)
+
         else:
             line = self.ax.axhline
-        
+            annot_xy = (0, ref_val)
+            annot_xy_text = (0.1, ref_val * 1.02)
         line(ref_val, c=c, ls='--')
-        
-        
+
+
         annotation = '{:{prec}}'.format(ref_val, prec=self.strfmt)
         if text is not None:
             annotation += f', {text}'
@@ -684,17 +698,17 @@ class Visualization:
             annotation += f', {value}'
         self.ax.annotate(annotation, annot_xy, annot_xy_text, c=c)
         return self
-    
+
     def plot(self):
         """ Plot the data and show nicely."""
         plotter = self._plot_properties['function']
         color = self._define_colors()
         linestyles = self._define_linestyles()
         self.ax = plotter(self._data_to_plot, color=color, style=linestyles, ax=self.ax)
-        
+
         for v in self.reference_lines:
             self.add_reference_line(v)
-        
+
         if self.annotated:
             self.annotate()
 
@@ -705,7 +719,7 @@ class Visualization:
 
         self.ax.set_frame_on(False)
 
-        # TODO: format ticks better, for datetimes and integers
+        # TODO: format ticks better, for datetimes and integers7
 
         if 'x' not in self._plot_properties['axes_with_ticks']:
             self.ax.set_xticks([])
@@ -721,13 +735,13 @@ class Visualization:
             else:
                 title = self._data_to_plot.columns.name
             utils.move_legend_outside_plot(self.ax, title=title)
-        
+
         if isinstance(self._data_to_plot, pd.Series):
             name = self._data_to_plot.name or self._data_to_plot.index.name
             if self._plot_properties['orient'] == 'v' or self.plottype == 'waterfall':
                 self.ax.set_ylabel(name)
             else:
-                self.ax.set_xlabel(name)               
+                self.ax.set_xlabel(name)
 
 def visualize(data, **kwargs):
     """

@@ -6,25 +6,25 @@ import matplotlib.colors
 
 
 def is_percentage_series(series):
-    '''
+    """
     Checks whether a series contains all percentages
 
     By checking whether all values are between 0 and 1, and the sum is equal to 1
-    '''
+    """
     return series.between(0, 1).all() and math.isclose(series.sum(), 1)
 
 
 def contrasting_text_color(colorname):
-    '''
+    """
     Calculates whether text on top of this color should be in black or white
 
     Taken from https://stackoverflow.com/questions/3942878
     /how-to-decide-font-color-in-white-or-black-depending-on-background-color
-    '''
+    """
     red, green, blue, alpha = matplotlib.colors.to_rgba(colorname)
-    if (red*0.299 + green*0.587 + blue*0.114) > 0.6:
-        return 'black'
-    return 'white'
+    if (red * 0.299 + green * 0.587 + blue * 0.114) > 0.6:
+        return "black"
+    return "white"
 
 
 def sort(data, sorting):
@@ -40,15 +40,15 @@ def sort(data, sorting):
 
     """
     # TODO: validata data is of type DataFrame or Series
-    if sorting == 'original':
+    if sorting == "original":
         return data
-    elif sorting == 'index':
+    elif sorting == "index":
         return data.sort_index()
-    elif sorting == 'ascending':
+    elif sorting == "ascending":
         return data.sort_values()
-    elif  sorting == 'descending':
+    elif sorting == "descending":
         return data.sort_values(ascendng=False)
-    raise NotImplementedError(f'Unknown sorting type `{sorting}`')
+    raise NotImplementedError(f"Unknown sorting type `{sorting}`")
 
 
 def extract_number(string: str):
@@ -66,11 +66,11 @@ def extract_number(string: str):
         The extracted float
 
     """
-    found = re.search('\d+\.\d+', string)
+    found = re.search("\d+\.\d+", string)
     if not found:
-        found = re.search('\.\d+', string)
+        found = re.search("\.\d+", string)
     if not found:
-        found = re.search('\d+', string)
+        found = re.search("\d+", string)
     number = float(found.group())
     return number
 
@@ -90,7 +90,7 @@ def move_legend_outside_plot(ax, **kwargs):
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height * 0.8])
 
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), **kwargs)
+    ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), **kwargs)
 
 
 class SizeScaler:
@@ -125,10 +125,10 @@ class SizeScaler:
         min_val = ((data - data.mean()) / data.std() * self.factor).min()
 
         self.addition = -1 * min_val + 7
-    
+
     def _check_is_fitted(self):
         if any(value is None for value in [self.mean, self.std, self.addition]):
-            raise ValueError('Scaler not fitted yet')
+            raise ValueError("Scaler not fitted yet")
 
     def transform(self, data):
         """Transform data points to marker sizes."""

@@ -13,12 +13,13 @@ from itertools import cycle
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from micplot import defaults, utils, plotfunctions
+from . import defaults, utils, plotfunctions  # TODO: move defaults into yaml
+
 
 class Annotator:
     """Annotates a plot."""
 
-    def __init__(self, ax, orient, strfmt='.2f', text_alignment=None, text_color=None):
+    def __init__(self, ax, orient, strfmt=".2f", text_alignment=None, text_color=None):
         """
         Initialize Annotator object.
 
@@ -42,13 +43,12 @@ class Annotator:
 
         """
         self.ax = ax
-        if orient not in ['h', 'v']:
+        if orient not in ["h", "v"]:
             raise ValueError(f'orient must be "v" or "h", not {orient}')
         self.orient = orient
         self.strfmt = strfmt
         self.text_alignment = text_alignment
         self.text_color = text_color
-
 
     def _determine_offset(self):
         """
@@ -62,13 +62,13 @@ class Annotator:
             The offset in plot distance
 
         """
-        if self.orient == 'h':
+        if self.orient == "h":
             lim_min, lim_max = self.ax.get_xlim()
         else:
             lim_min, lim_max = self.ax.get_ylim()
         plotsize = lim_max - lim_min
 
-        offset =  defaults.OFFSET_FRACTION * plotsize
+        offset = defaults.OFFSET_FRACTION * plotsize
         return offset
 
     def _determine_alignments(self, value):
@@ -91,19 +91,19 @@ class Annotator:
 
         """
         if value < 0:
-            if self.orient == 'h':
-                ha = self.text_alignment or 'right'
-                va = 'center'
+            if self.orient == "h":
+                ha = self.text_alignment or "right"
+                va = "center"
             else:
-                va = self.text_alignment or 'top'
-                ha = 'center'
+                va = self.text_alignment or "top"
+                ha = "center"
         else:
-            if self.orient == 'h':
-                ha = self.text_alignment or 'left'
-                va = 'center'
+            if self.orient == "h":
+                ha = self.text_alignment or "left"
+                va = "center"
             else:
-                va = self.text_alignment or 'bottom'
-                ha = 'center'
+                va = self.text_alignment or "bottom"
+                ha = "center"
         return ha, va
 
     def _determine_xy_from_value(self, value, index):
@@ -127,8 +127,8 @@ class Annotator:
             y coordinate of the input
 
         """
-        x = value if self.orient == 'h' else index
-        y = index if self.orient == 'h' else value
+        x = value if self.orient == "h" else index
+        y = index if self.orient == "h" else value
         return (x, y)
 
     def annotate(self, coordinates: pd.Series, display_values=None, index_offset=0):
@@ -165,7 +165,7 @@ class Annotator:
                 v += offset
             xytext = self._determine_xy_from_value(v, ind)
             ha, va = self._determine_alignments(v)
-            label = '{:{prec}}'.format(dv, prec=self.strfmt)
+            label = "{:{prec}}".format(dv, prec=self.strfmt)
             self.ax.annotate(label, xy, xytext, va=va, ha=ha, color=self.text_color)
 
     def annotate_scatter(self, coordinates: pd.DataFrame, display_values):
@@ -189,7 +189,9 @@ class Annotator:
         """
         offset = self._determine_offset()
 
-        for label, x, y in zip(display_values, coordinates.iloc[:, 0], coordinates.iloc[:, 1]):
+        for label, x, y in zip(
+            display_values, coordinates.iloc[:, 0], coordinates.iloc[:, 1]
+        ):
             y2 = y + offset
             self.ax.annotate(label, (x, y), (x, y2))
 
@@ -214,6 +216,7 @@ class Annotator:
             index_offset = -0.5 + (i + 1) / (df.shape[1] + 2)
             self.annotate(df[colname], index_offset=index_offset)
 
+
 class Consultant:
     """Recommend plotting choices."""
 
@@ -233,23 +236,23 @@ class Consultant:
         """
         if isinstance(data.index, pd.DatetimeIndex):
             if len(data) < defaults.LEN_LINEPLOT:
-                plottype = 'vertical_bar'
+                plottype = "vertical_bar"
             else:
-                plottype = 'line'
+                plottype = "line"
         elif isinstance(data, pd.Series):
             if utils.is_percentage_series(data):
-                plottype = 'waterfall'
+                plottype = "waterfall"
             else:
-                plottype = 'bar'
+                plottype = "bar"
         elif isinstance(data, pd.DataFrame):
             if data.apply(utils.is_percentage_series).all():
-                plottype = 'composition_comparison'
+                plottype = "composition_comparison"
             elif data.shape[1] == 2:
-                plottype = 'scatter'
+                plottype = "scatter"
             elif data.shape[1] == 3:
-                plottype = 'bubble'
+                plottype = "bubble"
             else:
-                return 'bar'
+                return "bar"
         return plottype
 
     def recommend_annotation(self, data, plottype=None):
@@ -272,8 +275,15 @@ class Consultant:
         """
         plottype = plottype or self.recommend_plottype(data)
 
-        if (plottype in ['bar', 'waterfall', 'vertical_bar', 'composition_comparison']
-            or (plottype in ['scatter', 'bubble'] and len(data) <= defaults.LEN_ANNOTATE_SCATTER)):
+        if plottype in [
+            "bar",
+            "waterfall",
+            "vertical_bar",
+            "composition_comparison",
+        ] or (
+            plottype in ["scatter", "bubble"]
+            and len(data) <= defaults.LEN_ANNOTATE_SCATTER
+        ):
             return True
 
         return False
@@ -310,39 +320,44 @@ class Consultant:
 
         """
         if isinstance(data.index, pd.DatetimeIndex):
-            return 'index'
+            return "index"
         if isinstance(data, pd.DataFrame):
-            return 'original'
-        return 'ascending'
+            return "original"
+        return "ascending"
 
     def recommend_stringformat(self, data):
-        '''
+        """
         Determine label precision from data type
 
         Parameters
         ----------
         data : pandas Dataframe or Series with data to label
-        '''
-        if (isinstance(data, pd.DataFrame) and data.apply(utils.is_percentage_series).all()) or\
-            (isinstance(data, pd.Series) and utils.is_percentage_series(data)):
-            strfmt = '.1%'
-        elif ((isinstance(data, pd.DataFrame) and data.apply(pd.api.types.is_integer_dtype).all())
-              or  (isinstance(data, pd.Series) and pd.api.types.is_integer_dtype(data))):
-            strfmt = 'd'
+        """
+        if (
+            isinstance(data, pd.DataFrame)
+            and data.apply(utils.is_percentage_series).all()
+        ) or (isinstance(data, pd.Series) and utils.is_percentage_series(data)):
+            strfmt = ".1%"
+        elif (
+            isinstance(data, pd.DataFrame)
+            and data.apply(pd.api.types.is_integer_dtype).all()
+        ) or (isinstance(data, pd.Series) and pd.api.types.is_integer_dtype(data)):
+            strfmt = "d"
         else:
-            strfmt = '.2f'
+            strfmt = ".2f"
         return strfmt
 
     def recommend_highlight_type(self, data, plottype):
-        row_plottypes= ['scatter', 'bubble', 'composition_comparison']
+        row_plottypes = ["scatter", "bubble", "composition_comparison"]
         if isinstance(data, pd.Series) or plottype in row_plottypes:
-            return 'row'
-        return 'column'
+            return "row"
+        return "column"
 
     def recommend_reference_line(self, plottype):
-        if plottype == 'bar':
-            return ['mean']
+        if plottype == "bar":
+            return ["mean"]
         return []
+
     # def recommend_choices(self, data):
     #     choices = {}
     #     choices['plottype'] = self.recommend_plottype(data)
@@ -358,48 +373,58 @@ class Visualization:
     Fully customizable through its iniatilization and its attributes
     """
 
-    plots = {'bar': {'function': plotfunctions.plot_bar,
-                 'axes_with_ticks': ['y'],
-                 'orient': 'h',
-                 },
-             'waterfall': {'function': plotfunctions.plot_waterfall,
-                           'axes_with_ticks': ['y'],
-                           'orient': 'h',
-                           },
-             'vertical_bar': {'function': plotfunctions.plot_vertical_bar,
-                 'axes_with_ticks': ['x'],
-                 'orient': 'v',
-                 },
-             'line': {'function': plotfunctions.plot_line,
-                 'axes_with_ticks': ['x', 'y'],
-                 'orient': 'v',
-                 },
-             'scatter': {'function': plotfunctions.plot_scatter,
-                 'axes_with_ticks': ['x', 'y'],
-                 'orient': 'v',
-                 },
-             'bubble': {'function': plotfunctions.plot_bubble,
-                 'axes_with_ticks': ['x', 'y'],
-                 'orient': 'v',
-                 },
-             'pie': {'function': plotfunctions.plot_pie},
-             'composition_comparison': {'function': plotfunctions.plot_composition_comparison,
-                                        'axes_with_ticks': ['y'],
-                                        'orient': 'h'}
-         }
+    plots = {
+        "bar": {
+            "function": plotfunctions.plot_bar,
+            "axes_with_ticks": ["y"],
+            "orient": "h",
+        },
+        "waterfall": {
+            "function": plotfunctions.plot_waterfall,
+            "axes_with_ticks": ["y"],
+            "orient": "h",
+        },
+        "vertical_bar": {
+            "function": plotfunctions.plot_vertical_bar,
+            "axes_with_ticks": ["x"],
+            "orient": "v",
+        },
+        "line": {
+            "function": plotfunctions.plot_line,
+            "axes_with_ticks": ["x", "y"],
+            "orient": "v",
+        },
+        "scatter": {
+            "function": plotfunctions.plot_scatter,
+            "axes_with_ticks": ["x", "y"],
+            "orient": "v",
+        },
+        "bubble": {
+            "function": plotfunctions.plot_bubble,
+            "axes_with_ticks": ["x", "y"],
+            "orient": "v",
+        },
+        "pie": {"function": plotfunctions.plot_pie},
+        "composition_comparison": {
+            "function": plotfunctions.plot_composition_comparison,
+            "axes_with_ticks": ["y"],
+            "orient": "h",
+        },
+    }
 
-
-    def __init__(self, data,
-                 plottype=None,
-                 highlight=None,
-                 highlight_color=defaults.HIGHLIGHT_COLOR,
-                 highlight_type=None,
-                 sorting=None,
-                 annotated=None,
-                 strfmt=None,
-                 reference_lines=None,
-                 **kwargs,
-                 ):
+    def __init__(
+        self,
+        data,
+        plottype=None,
+        highlight=None,
+        highlight_color=defaults.HIGHLIGHT_COLOR,
+        highlight_type=None,
+        sorting=None,
+        annotated=None,
+        strfmt=None,
+        reference_lines=None,
+        **kwargs,
+    ):
         """
         Initialize the visualization.
 
@@ -448,10 +473,15 @@ class Visualization:
         """
         # TODO: make data property
         if not isinstance(data, pd.DataFrame) and not isinstance(data, pd.Series):
-            raise TypeError(f'Data is not of type Series or DataFrame, but type {type(data)}')
+            raise TypeError(
+                f"Data is not of type Series or DataFrame, but type {type(data)}"
+            )
         # TODO: validate data is numeric
         self.data = data
-        self._data_to_plot = self.data.squeeze()
+        self._data_to_plot = (
+            self.data.copy()
+        )  # We must do this quickly because there is a bit of a circular dependency: plottype depends on data, but data depends on plottype
+        # TODO: look into this
 
         fig, ax = plt.subplots(**kwargs)
         self.ax = ax
@@ -462,24 +492,32 @@ class Visualization:
         self._highlight = self.consultant.recommend_highlight()
         self.highlight = highlight
         self.highlight_color = highlight_color
-        self.strfmt = strfmt or self.consultant.recommend_stringformat(self._data_to_plot)
+        self.strfmt = strfmt or self.consultant.recommend_stringformat(
+            self._data_to_plot
+        )
 
         self._plottype = self.consultant.recommend_plottype(self._data_to_plot)
         self.plottype = plottype
         self._data_to_plot = self.prepare_data()
         self.sorting = sorting
 
-        self.highlight_type = (highlight_type
-                               or self.consultant.recommend_highlight_type(self._data_to_plot,
-                                                                           self.plottype)
-                               )
-        self.annotated = (annotated
-                          or self.consultant.recommend_annotation(self._data_to_plot,
-                                                                  self.plottype)
-                          )
-        self.reference_lines = (reference_lines
-                                or self.consultant.recommend_reference_line(self.plottype)
-                                )
+        self.highlight_type = (
+            highlight_type
+            or self.consultant.recommend_highlight_type(
+                self._data_to_plot, self.plottype
+            )
+        )
+        self.annotated = annotated or self.consultant.recommend_annotation(
+            self._data_to_plot, self.plottype
+        )
+
+        # reference_lines as an empty list is a valid input but returns False
+        if reference_lines is not None:
+            self.reference_lines = reference_lines
+        else:
+            self.reference_lines = self.consultant.recommend_reference_line(
+                self.plottype
+            )
 
     @property
     def plottype(self):
@@ -497,7 +535,9 @@ class Visualization:
             new_plottype = self.consultant.recommend_plottype(self._data_to_plot)
         new_plottype = new_plottype.lower()
         if new_plottype not in self.plots.keys():
-            raise ValueError(f'Plottype must be one of {self.plots.keys()}, not `{new_plottype}`')
+            raise ValueError(
+                f"Plottype must be one of {self.plots.keys()}, not `{new_plottype}`"
+            )
         self._plottype = new_plottype
         self._determine_annotation()
         self._plot_properties = self.plots[self.plottype]
@@ -557,59 +597,64 @@ class Visualization:
             Must be in ['original', 'index', 'ascending', 'descending']
         """
         if new_reference_lines is None:
-            new_reference_lines = self.consultant.recommend_reference_line(self.plottype)
+            new_reference_lines = self.consultant.recommend_reference_line(
+                self.plottype
+            )
         self._reference_lines = new_reference_lines
 
     def prepare_data(self):
         """
         Make data uniform and plotworthy.
         """
-        new_data = (self.data
-                    .squeeze() # DataFrame with single column should be treated as Series
-                    .pipe(utils.sort, self.sorting)
-                    .copy() # Never modify the original data
-                    )
-        if self.plottype == 'waterfall':
+        new_data = self.data.copy()  # Never modify the original data
+        # We dont want to squeeze a single number Series to a non-pandas type
+        # That would crash the Visualization which works with pandas types
+        if isinstance(new_data, pd.DataFrame):
+            new_data = new_data.squeeze()
+
+        new_data = new_data.pipe(utils.sort, self.sorting)
+        if self.plottype == "waterfall":
             # TODO: this is not allowed if the index is Categorical <- make sure it's not or add category?
-            new_data.loc['Total'] = new_data.sum()
+            new_data.loc["Total"] = new_data.sum()
         return new_data
 
     def _determine_annotation(self):
         # TODO: add user preference as an option
-        self.annotated = self.consultant.recommend_annotation(self._data_to_plot, self.plottype)
+        self.annotated = self.consultant.recommend_annotation(
+            self._data_to_plot, self.plottype
+        )
 
     def _find_len_properties(self):
-        axis_highlight_type = {'row': 0,
-                               'column': 1}
+        axis_highlight_type = {"row": 0, "column": 1}
         len_axis = axis_highlight_type[self.highlight_type]
         len_properties = self._data_to_plot.shape[len_axis]
         return len_properties
 
     def _define_colors(self):
-        '''
+        """
         Return a list of colors with appropiate highlights.
 
         Returns
         -------
         color: list of len(data) with colors and appropriate highlights
-        '''
+        """
         len_colors = self._find_len_properties()
         color = [defaults.BACKGROUND_COLOR] * len_colors
 
         # Last bar is total, which should not be highlighted
-        if self.plottype == 'waterfall':
+        if self.plottype == "waterfall":
             color = color[:-1]
 
         for h in self.highlight:
             color[h] = self.highlight_color
 
         # Add darker shade for full bar
-        if self.plottype == 'waterfall':
+        if self.plottype == "waterfall":
             color += [defaults.BENCHMARK_COLOR]
         return color
 
     def _define_linestyles(self):
-        possible_linestyles = ['-', '--', '-.', ':']
+        possible_linestyles = ["-", "--", "-.", ":"]
         linecycler_background = cycle(possible_linestyles)
         linecycler_highlight = cycle(possible_linestyles)
         linestyles = []
@@ -621,47 +666,69 @@ class Visualization:
             linestyles[h] = next(linecycler_highlight)
         return linestyles
 
-    def annotate(self):
+    def annotate(self):  # TODO: break function into smaller pieces
         """ Annotates values in self.ax."""
-        if self.plottype == 'waterfall':
+        if self.plottype == "waterfall":
             blank = self._data_to_plot.cumsum().shift(1).fillna(0)
-            blank.loc['Total'] = 0
+            blank.loc["Total"] = 0
             locations = self._data_to_plot + blank
             display_values = self._data_to_plot
 
-        elif self.plottype == 'composition_comparison':
+        elif self.plottype == "composition_comparison":
             data_begin = self._data_to_plot.cumsum().shift().fillna(0)
             data_end = self._data_to_plot.cumsum()
             if len(self.highlight) > 1:
-                raise TypeError('Can only highlight one line in composition comparison')
+                raise TypeError("Can only highlight one line in composition comparison")
 
-            locations = data_begin.add(data_end).div(2).iloc[self.highlight[0]]
-            display_values = self._data_to_plot.iloc[self.highlight[0]]
+            locations = data_begin.add(data_end).div(2)
+            display_values = self._data_to_plot
+            if isinstance(locations, pd.DataFrame):
+                print("df locations")
+                print(locations)
+                locations = locations.iloc[self.highlight[0]]
+                display_values = self._data_to_plot.iloc[self.highlight[0]]
+            elif isinstance(
+                locations, pd.Series
+            ):  # We must keep it as a Series, not squeeze it to int/float
+                locations = locations.iloc[[self.highlight[0]]]
+                display_values = self._data_to_plot.iloc[[self.highlight[0]]]
         else:
             locations = self._data_to_plot
             display_values = self._data_to_plot
 
-        if self.plottype == 'composition_comparison':
+        if self.plottype == "composition_comparison":
             # With a composition comparison, annotating is done _in_ the plot
             # intead of just outside it
             text_color = utils.contrasting_text_color(self.highlight_color)
-            text_alignment = 'center'
+            text_alignment = "center"
         else:
             text_color = None
             text_alignment = None
 
-        ann = Annotator(self.ax, self._plot_properties['orient'], strfmt=self.strfmt,
-                        text_color=text_color, text_alignment=text_alignment)
+        ann = Annotator(
+            self.ax,
+            self._plot_properties["orient"],
+            strfmt=self.strfmt,
+            text_color=text_color,
+            text_alignment=text_alignment,
+        )
 
+        print(display_values)
         if isinstance(display_values, pd.Series):
             ann.annotate(locations, display_values)
-        else:
-            if self.plottype in ['scatter', 'bubble']:
-                ann.annotate_scatter(self._data_to_plot.iloc[:, :2], self._data_to_plot.index)
+        elif isinstance(display_values, pd.DataFrame):
+            if self.plottype in ["scatter", "bubble"]:
+                ann.annotate_scatter(
+                    self._data_to_plot.iloc[:, :2], self._data_to_plot.index
+                )
             else:
                 ann.annotate_dataframe(self._data_to_plot)
+        else:
+            raise NotImplementedError(
+                f"Cannot display annotation for type {type(display_values)}"
+            )
 
-    def add_reference_line(self, value='mean', text: str = None, c: str = 'k'):
+    def add_reference_line(self, value="mean", text: str = None, c: str = "k"):
         """
         Add dashed reference line to visualizaiton
 
@@ -679,7 +746,7 @@ class Visualization:
         else:
             ref_val = self._data_to_plot.agg(value)
 
-        if self._plot_properties['orient'] == 'h':
+        if self._plot_properties["orient"] == "h":
             line = self.ax.axvline
             annot_xy = (ref_val, 0)
             annot_xy_text = (ref_val * 1.02, 0.1)
@@ -688,20 +755,25 @@ class Visualization:
             line = self.ax.axhline
             annot_xy = (0, ref_val)
             annot_xy_text = (0.1, ref_val * 1.02)
-        line(ref_val, c=c, ls='--')
+        line(ref_val, c=c, ls="--")
 
-
-        annotation = '{:{prec}}'.format(ref_val, prec=self.strfmt)
+        # Cannot alway use strfmt of visualization:
+        # Average of ints can be a float (whcih should not be formatted as int)
+        if self.strfmt == "d" and isinstance(ref_val, float):
+            prec = ".1f"
+        else:
+            prec = self.strfmt
+        annotation = "{:{prec}}".format(ref_val, prec=prec)
         if text is not None:
-            annotation += f', {text}'
+            annotation += f", {text}"
         elif isinstance(value, str):
-            annotation += f', {value}'
+            annotation += f", {value}"
         self.ax.annotate(annotation, annot_xy, annot_xy_text, c=c)
         return self
 
     def plot(self):
         """ Plot the data and show nicely."""
-        plotter = self._plot_properties['function']
+        plotter = self._plot_properties["function"]
         color = self._define_colors()
         linestyles = self._define_linestyles()
         self.ax = plotter(self._data_to_plot, color=color, style=linestyles, ax=self.ax)
@@ -721,16 +793,18 @@ class Visualization:
 
         # TODO: format ticks better, for datetimes and integers7
 
-        if 'x' not in self._plot_properties['axes_with_ticks']:
+        if "x" not in self._plot_properties["axes_with_ticks"]:
             self.ax.set_xticks([])
-        if 'y' not in self._plot_properties['axes_with_ticks']:
+        if "y" not in self._plot_properties["axes_with_ticks"]:
             self.ax.set_yticks([])
 
         # Plot contains legend
-        if (isinstance(self._data_to_plot, pd.DataFrame)
+        if (
+            isinstance(self._data_to_plot, pd.DataFrame)
             # Legend is fixed in side plotting function
-            and self.plottype not in ['scatter', 'bubble']):
-            if self.highlight_type == 'row':
+            and self.plottype not in ["scatter", "bubble"]
+        ):
+            if self.highlight_type == "row":
                 title = self._data_to_plot.index.name
             else:
                 title = self._data_to_plot.columns.name
@@ -738,10 +812,11 @@ class Visualization:
 
         if isinstance(self._data_to_plot, pd.Series):
             name = self._data_to_plot.name or self._data_to_plot.index.name
-            if self._plot_properties['orient'] == 'v' or self.plottype == 'waterfall':
+            if self._plot_properties["orient"] == "v" or self.plottype == "waterfall":
                 self.ax.set_ylabel(name)
             else:
                 self.ax.set_xlabel(name)
+
 
 def visualize(data, **kwargs):
     """
@@ -765,5 +840,6 @@ def visualize(data, **kwargs):
     vis = Visualization(data, **kwargs)
     vis.plot()
     return vis
+
 
 micompanyify = visualize

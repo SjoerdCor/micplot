@@ -358,13 +358,6 @@ class Consultant:
             return ["mean"]
         return []
 
-    # def recommend_choices(self, data):
-    #     choices = {}
-    #     choices['plottype'] = self.recommend_plottype(data)
-    #     choices['annotated'] = self.recommend_annotation(choices['plottype'], data)
-    #     choices['highlight'] = self.recommend_highlight()
-    #     return choices
-
 
 class Visualization:
     """
@@ -683,8 +676,6 @@ class Visualization:
             locations = data_begin.add(data_end).div(2)
             display_values = self._data_to_plot
             if isinstance(locations, pd.DataFrame):
-                print("df locations")
-                print(locations)
                 locations = locations.iloc[self.highlight[0]]
                 display_values = self._data_to_plot.iloc[self.highlight[0]]
             elif isinstance(
@@ -713,7 +704,6 @@ class Visualization:
             text_alignment=text_alignment,
         )
 
-        print(display_values)
         if isinstance(display_values, pd.Series):
             ann.annotate(locations, display_values)
         elif isinstance(display_values, pd.DataFrame):

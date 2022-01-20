@@ -129,5 +129,7 @@ def plot_pie(data, **kwargs):
 
 def plot_composition_comparison(data, **kwargs):
     """ Plot comparison of distributions as stacked bar charts."""
+    if isinstance(data, pd.Series):
+        data = data.to_frame()  # Series doesn't stack bars
     ax = data.transpose().plot(kind="barh", stacked=True, **kwargs)
     return ax

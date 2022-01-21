@@ -8,10 +8,14 @@ the user receives a Visualization object, with an Axis object as an attribute
 that contains a plot of the data
 """
 
+import warnings
+import math
 from itertools import cycle
 
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm
 
 from . import defaults, utils, plotfunctions  # TODO: move defaults into yaml
 
@@ -492,8 +496,6 @@ class Visualization:
         self.consultant = Consultant()
         self._sorting = self.consultant.recommend_sorting(self._data_to_plot)
         self.sorting = sorting
-        self._highlight = self.consultant.recommend_highlight()
-        self.highlight = highlight
         self.highlight_color = highlight_color
         self.strfmt = strfmt or self.consultant.recommend_stringformat(
             self._data_to_plot
@@ -510,6 +512,24 @@ class Visualization:
                 self._data_to_plot, self.plottype
             )
         )
+        # Highlights can only be determined after the highlight type
+        self._highlight = self.consultant.recommend_highlight()
+        self.highlight = highlight  # TODO why does this happen in two lines again?
+
+        # TODO: allow for secondary highlight colors
+        if self.plottype == "line" and len(self.highlight) > 3:
+            msg = """You have more than 3 highlighted lines in a line plot, since
+            there are no more line styles, you will not be able to distinguish all
+            highlighted lines. Consider highlighting less lines, or using another plottype
+                    """
+            warnings.warn(msg)
+        if self.plottype == "vertical_bar" and len(self.highlight) > 1:
+            msg = """You are highlighting more than one category in the vertical bar chart.
+            You will not be able to distinguish those. Consider highlight only one category,
+            or switching to a line plot.
+            """
+            warnings.warn(msg)
+
         if annotated is None:
             annotated = self.consultant.recommend_annotation(
                 self._data_to_plot, self.plottype
@@ -566,8 +586,17 @@ class Visualization:
             new_highlight = self.consultant.recommend_highlight()
         if isinstance(new_highlight, int):
             new_highlight = [new_highlight]
-        # TODO: validate is iterable
-        self._highlight = new_highlight
+
+        len_axis = self._find_len_properties()
+        highlight_def = []
+
+        # All positive list is easier to work with when iterating in other methods
+        for h in new_highlight:
+            if h >= 0:
+                highlight_def.append(h)
+            else:
+                highlight_def.append(len_axis + h)
+        self._highlight = highlight_def
 
     @property
     def sorting(self):
@@ -644,15 +673,43 @@ class Visualization:
         -------
         color: list of len(data) with colors and appropriate highlights
         """
-        len_colors = self._find_len_properties()
-        color = [defaults.BACKGROUND_COLOR] * len_colors
+        len_axis = self._find_len_properties()
+
+        def define_line_colors(len_axis, highlight, highlight_color):
+            n_linestyles = 3
+            n_non_highlighted = len_axis - len(self.highlight)
+            if n_non_highlighted == 0:
+                return [highlight_color] * len_axis
+
+            n_different_colors = math.ceil(n_non_highlighted / n_linestyles)
+            # TODO: the cmap should be some sort of config or config related
+            non_highlight_colorlist = [
+                matplotlib.cm.get_cmap("Greys")(x)
+                for x in np.linspace(1 / n_different_colors, 1, n_different_colors)
+            ]
+            non_highlight_colorlist = np.repeat(
+                non_highlight_colorlist, n_linestyles, axis=0
+            )
+            non_highlight_colorlist = cycle(non_highlight_colorlist)
+            color = []
+            for i in range(len_axis):
+                if i in highlight:
+                    color.append(self.highlight_color)
+                else:
+                    color.append(next(non_highlight_colorlist))
+            return color
+
+        if self.plottype == "line":
+            color = define_line_colors(len_axis, self.highlight, self.highlight_color)
+
+        else:
+            color = [defaults.BACKGROUND_COLOR] * len_axis
+            for h in self.highlight:
+                color[h] = self.highlight_color
 
         # Last bar is total, which should not be highlighted
         if self.plottype == "waterfall":
             color = color[:-1]
-
-        for h in self.highlight:
-            color[h] = self.highlight_color
 
         # Add darker shade for full bar
         if self.plottype == "waterfall":

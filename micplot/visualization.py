@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 
 from . import defaults, utils, plotfunctions  # TODO: move defaults into yaml
 
+# TODO: split module for classes
+
 
 class Annotator:
     """Annotates a plot."""
@@ -131,6 +133,8 @@ class Annotator:
         y = index if self.orient == "h" else value
         return (x, y)
 
+    # TODO: add line annotation
+
     def annotate(self, coordinates: pd.Series, display_values=None, index_offset=0):
         """
         Annotate the axis.
@@ -234,6 +238,8 @@ class Consultant:
         -------
         plottype: string of plottype to be used by micompanyify
         """
+        # TODO MUST: check the number of bars
+        # TODO: check whether with multiple categories Vertical_bar still is best
         if isinstance(data.index, pd.DatetimeIndex):
             if len(data) < defaults.LEN_LINEPLOT:
                 plottype = "vertical_bar"
@@ -319,6 +325,7 @@ class Consultant:
             sorting parameter
 
         """
+        # TODO: check whether this is as wanted. Do you want to sort with a line plot? Shouldnt it be based on the plottype (e.g. never sort a bubble/scatter plot)
         if isinstance(data.index, pd.DatetimeIndex):
             return "index"
         if isinstance(data, pd.DataFrame):
@@ -416,6 +423,7 @@ class Visualization:
         annotated=None,
         strfmt=None,
         reference_lines=None,
+        ax=None,
         **kwargs,
     ):
         """
@@ -464,6 +472,7 @@ class Visualization:
             If data is not of type pd.Series or pd.DataFrame
 
         """
+        # TODO MUST: add documentation for reference_lines
         # TODO: make data property
         if not isinstance(data, pd.DataFrame) and not isinstance(data, pd.Series):
             raise TypeError(
@@ -476,7 +485,8 @@ class Visualization:
         )  # We must do this quickly because there is a bit of a circular dependency: plottype depends on data, but data depends on plottype
         # TODO: look into this
 
-        fig, ax = plt.subplots(**kwargs)
+        if ax is None:
+            fig, ax = plt.subplots(**kwargs)
         self.ax = ax
 
         self.consultant = Consultant()
@@ -500,9 +510,11 @@ class Visualization:
                 self._data_to_plot, self.plottype
             )
         )
-        self.annotated = annotated or self.consultant.recommend_annotation(
-            self._data_to_plot, self.plottype
-        )
+        if annotated is None:
+            annotated = self.consultant.recommend_annotation(
+                self._data_to_plot, self.plottype
+            )
+        self.annotated = annotated
 
         # reference_lines as an empty list is a valid input but returns False
         if reference_lines is not None:
@@ -600,6 +612,7 @@ class Visualization:
         Make data uniform and plotworthy.
         """
         new_data = self.data.copy()  # Never modify the original data
+
         # We dont want to squeeze a single number Series to a non-pandas type
         # That would crash the Visualization which works with pandas types
         if isinstance(new_data, pd.DataFrame):
@@ -647,7 +660,8 @@ class Visualization:
         return color
 
     def _define_linestyles(self):
-        possible_linestyles = ["-", "--", "-.", ":"]
+        # TODO MUST: look into how I want to define linestyles and colors
+        possible_linestyles = ["-", "--", ":"]
         linecycler_background = cycle(possible_linestyles)
         linecycler_highlight = cycle(possible_linestyles)
         linestyles = []
@@ -781,7 +795,8 @@ class Visualization:
 
         self.ax.set_frame_on(False)
 
-        # TODO: format ticks better, for datetimes and integers7
+        # TODO: format ticks better, for datetimes and integers
+        # TODO: format ticks based on strfmt
 
         if "x" not in self._plot_properties["axes_with_ticks"]:
             self.ax.set_xticks([])
@@ -791,7 +806,7 @@ class Visualization:
         # Plot contains legend
         if (
             isinstance(self._data_to_plot, pd.DataFrame)
-            # Legend is fixed in side plotting function
+            # Legend is fixed inside plotting function
             and self.plottype not in ["scatter", "bubble"]
         ):
             if self.highlight_type == "row":

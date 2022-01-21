@@ -5,6 +5,8 @@ import pandas as pd
 
 from . import utils
 
+# TODO: consider idea of classes
+
 
 def plot_bar(data, **kwargs):
     """ Plot bar chart."""

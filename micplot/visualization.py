@@ -11,6 +11,7 @@ that contains a plot of the data
 import warnings
 import math
 from itertools import cycle
+from typing import Iterable, Union
 
 import pandas as pd
 import numpy as np
@@ -242,8 +243,7 @@ class Consultant:
         -------
         plottype: string of plottype to be used by micompanyify
         """
-        # TODO MUST: check the number of bars
-        # TODO: check whether with multiple categories Vertical_bar still is best
+        # TODO: check whether with multiple categories vertical_bar still is best
         if isinstance(data.index, pd.DatetimeIndex):
             if len(data) < defaults.LEN_LINEPLOT:
                 plottype = "vertical_bar"
@@ -419,15 +419,15 @@ class Visualization:
     def __init__(
         self,
         data,
-        plottype=None,
-        highlight=None,
-        highlight_color=defaults.HIGHLIGHT_COLOR,
-        highlight_type=None,
-        sorting=None,
-        annotated=None,
-        strfmt=None,
-        reference_lines=None,
-        ax=None,
+        plottype: str = None,
+        highlight: Union[Iterable[int], int] = None,
+        highlight_color: str = defaults.HIGHLIGHT_COLOR,
+        highlight_type: str = None,
+        sorting: str = None,
+        annotated: bool = None,
+        strfmt: str = None,
+        reference_lines: Iterable[Union[str, int]] = None,
+        ax: plt.Axes = None,
         **kwargs,
     ):
         """
@@ -452,6 +452,7 @@ class Visualization:
             Iterable of indices of the values which should be highlighted. By default, is top value
         highlight_color : str, optional
             Color str in which to highlight some values. The default is defaults.HIGHLIGHT_COLOR.
+            Other allowed specification types are documented here: https://matplotlib.org/stable/tutorials/colors/colors.html
         highlight_type : str, optional
             Whether to highlight "row" or "column". By default, this is determined from the data
         sorting : str, optional
@@ -467,6 +468,11 @@ class Visualization:
         strfmt : str, optional
             The format string, how to annotate the data. By default, this is inferred
             from the data type
+        reference_lines : iterable, optional
+            The numerical values or aggregation to perform at which reference lines are shown.
+            By default, in a bar plot, the mean is shown.
+        ax : plt.Axes, optional
+            The Axes object on which to plot. If not given, a new Axes is created with the **kwargs
         kwargs
             Passed to plt.subplots(), e.g. figsize
 
@@ -476,7 +482,6 @@ class Visualization:
             If data is not of type pd.Series or pd.DataFrame
 
         """
-        # TODO MUST: add documentation for reference_lines
         # TODO: make data property
         if not isinstance(data, pd.DataFrame) and not isinstance(data, pd.Series):
             raise TypeError(
@@ -717,7 +722,6 @@ class Visualization:
         return color
 
     def _define_linestyles(self):
-        # TODO MUST: look into how I want to define linestyles and colors
         possible_linestyles = ["-", "--", ":"]
         linecycler_background = cycle(possible_linestyles)
         linecycler_highlight = cycle(possible_linestyles)

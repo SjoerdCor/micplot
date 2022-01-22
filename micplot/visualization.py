@@ -253,10 +253,7 @@ class Consultant:
             if utils.is_percentage_series(data):
                 plottype = "waterfall"
             else:
-                if len(data) < 50:  # More bars leads to very slow plotting
-                    plottype = "bar"
-                else:  # TODO: should check for (Multi)Index type: this only makes sense for numerical indexes
-                    plottype = "line"
+                plottype = "bar"
         elif isinstance(data, pd.DataFrame):
             if data.apply(utils.is_percentage_series).all():
                 plottype = "composition_comparison"
@@ -265,7 +262,12 @@ class Consultant:
             elif data.shape[1] == 3:
                 plottype = "bubble"
             else:
-                return "bar"
+                plottype = "bar"
+
+        # Large number of bars lead to very slow plotting
+        if plottype == "bar" and len(data) > 50:
+            plottype = "line"  # TODO: should check for (Multi)Index type: this only makes sense for numerical indexes
+
         return plottype
 
     def recommend_annotation(self, data, plottype=None):
@@ -535,7 +537,7 @@ class Visualization:
             warnings.warn(msg)
         if self.plottype == "vertical_bar" and len(self.highlight) > 1:
             msg = """You are highlighting more than one category in the vertical bar chart.
-            You will not be able to distinguish those. Consider highlight only one category,
+            You will not be able to distinguish those. Consider highlighting only one category,
             or switching to a line plot.
             """
             warnings.warn(msg)

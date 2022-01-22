@@ -255,7 +255,7 @@ class Consultant:
             else:
                 if len(data) < 50:  # More bars leads to very slow plotting
                     plottype = "bar"
-                else:
+                else:  # TODO: should check for (Multi)Index type: this only makes sense for numerical indexes
                     plottype = "line"
         elif isinstance(data, pd.DataFrame):
             if data.apply(utils.is_percentage_series).all():
@@ -277,8 +277,8 @@ class Consultant:
         data : pd.Series or pd.DataFrame
             The data which is plotted
         plottype : str, optional
-            The type of plot. If not filled, recommends it based on recommended
-            plot type
+            The type of plot. If not filled, recommends annotation
+            based on recommended plot type
 
         Returns
         -------
@@ -286,6 +286,7 @@ class Consultant:
             Whether to annotate
 
         """
+        # TODO: this probably should only be based on the actual plottype
         plottype = plottype or self.recommend_plottype(data)
 
         if plottype in [
@@ -347,15 +348,13 @@ class Consultant:
         ----------
         data : pandas Dataframe or Series with data to label
         """
-        if (
-            isinstance(data, pd.DataFrame)
-            and data.apply(utils.is_percentage_series).all()
-        ) or (isinstance(data, pd.Series) and utils.is_percentage_series(data)):
+        if utils.apply_function_to_series_or_all_columns(
+            data, utils.is_percentage_series
+        ):
             strfmt = ".1%"
-        elif (
-            isinstance(data, pd.DataFrame)
-            and data.apply(pd.api.types.is_integer_dtype).all()
-        ) or (isinstance(data, pd.Series) and pd.api.types.is_integer_dtype(data)):
+        elif utils.apply_function_to_series_or_all_columns(
+            data, pd.api.types.is_integer_dtype
+        ):
             strfmt = "d"
         else:
             strfmt = ".2f"
@@ -363,6 +362,9 @@ class Consultant:
 
     def recommend_highlight_type(self, data, plottype):
         row_plottypes = ["scatter", "bubble", "composition_comparison"]
+        column_plottypes = ["line"]
+        if plottype in column_plottypes:
+            return "column"
         if isinstance(data, pd.Series) or plottype in row_plottypes:
             return "row"
         return "column"
@@ -538,6 +540,7 @@ class Visualization:
             """
             warnings.warn(msg)
 
+        # TODO: it should be possible to only annotate the highlighted bars
         if annotated is None:
             annotated = self.consultant.recommend_annotation(
                 self._data_to_plot, self.plottype
@@ -603,6 +606,8 @@ class Visualization:
             if h >= 0:
                 highlight_def.append(h)
             else:
+                if self.plottype == "waterfall":
+                    h -= 1  # The very last bar is the Total, we want to start counting before that one
                 highlight_def.append(len_axis + h)
         self._highlight = highlight_def
 
@@ -670,8 +675,10 @@ class Visualization:
     def _find_len_properties(self):
         axis_highlight_type = {"row": 0, "column": 1}
         len_axis = axis_highlight_type[self.highlight_type]
-        len_properties = self._data_to_plot.shape[len_axis]
-        return len_properties
+        try:
+            return self._data_to_plot.shape[len_axis]
+        except IndexError:  # n_columns for pd.Series not defined
+            return 1
 
     def _define_colors(self):
         """
@@ -684,25 +691,23 @@ class Visualization:
         len_axis = self._find_len_properties()
 
         def define_line_colors(len_axis, highlight, highlight_color):
-            n_linestyles = 3
+            n_linestyles = 3  # TODO: this is defined in self._define_linestyles. The link should be explicit
             n_non_highlighted = len_axis - len(self.highlight)
-            if n_non_highlighted == 0:
-                return [highlight_color] * len_axis
 
             n_different_colors = math.ceil(n_non_highlighted / n_linestyles)
             # TODO: the cmap should be some sort of config or config related
+            # Perhaps the 0 should be higher if u have fewer colors, because black doesn't really look nice
+            # pyplot interprets string floats between 0 and 1 as Grey values (0 == black)
             non_highlight_colorlist = [
-                matplotlib.cm.get_cmap("Greys")(x)
-                for x in np.linspace(1 / n_different_colors, 1, n_different_colors)
+                str(x) for x in np.linspace(0.75, 0, n_different_colors)
             ]
-            non_highlight_colorlist = np.repeat(
-                non_highlight_colorlist, n_linestyles, axis=0
-            )
+            non_highlight_colorlist = np.repeat(non_highlight_colorlist, n_linestyles)
             non_highlight_colorlist = cycle(non_highlight_colorlist)
+
             color = []
             for i in range(len_axis):
                 if i in highlight:
-                    color.append(self.highlight_color)
+                    color.append(highlight_color)
                 else:
                     color.append(next(non_highlight_colorlist))
             return color
@@ -715,13 +720,8 @@ class Visualization:
             for h in self.highlight:
                 color[h] = self.highlight_color
 
-        # Last bar is total, which should not be highlighted
         if self.plottype == "waterfall":
-            color = color[:-1]
-
-        # Add darker shade for full bar
-        if self.plottype == "waterfall":
-            color += [defaults.BENCHMARK_COLOR]
+            color[-1] = defaults.BENCHMARK_COLOR  # last bar is total, give darker shade
         return color
 
     def _define_linestyles(self):
@@ -793,7 +793,7 @@ class Visualization:
                 ann.annotate_dataframe(self._data_to_plot)
         else:
             raise NotImplementedError(
-                f"Cannot display annotation for type {type(display_values)}"
+                f"Cannot display annotation for type {type(display_values)!r}"
             )
 
     def add_reference_line(self, value="mean", text: str = None, c: str = "k"):

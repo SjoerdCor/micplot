@@ -2,6 +2,9 @@
 """Utility functions to help plotting."""
 import re
 import math
+from typing import Union, Callable
+
+import pandas as pd
 import matplotlib.colors
 
 
@@ -25,6 +28,20 @@ def contrasting_text_color(colorname):
     if (red * 0.299 + green * 0.587 + blue * 0.114) > 0.6:
         return "black"
     return "white"
+
+
+def apply_function_to_series_or_all_columns(
+    data: Union[pd.Series, pd.DataFrame], function: Callable
+):
+    """
+    Applies a function to the series if data is pd.Series, or to each column if data is pd.DataFrame
+    """
+    if isinstance(data, pd.Series):
+        return function(data)
+    elif isinstance(data, pd.DataFrame):
+        return data.apply(function).all()
+    else:
+        raise TypeError(f"Data should be pd.Series or pd.DataFrame not {type(data)!r}")
 
 
 def sort(data, sorting):

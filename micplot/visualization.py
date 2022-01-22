@@ -253,7 +253,10 @@ class Consultant:
             if utils.is_percentage_series(data):
                 plottype = "waterfall"
             else:
-                plottype = "bar"
+                if len(data) < 50:  # More bars leads to very slow plotting
+                    plottype = "bar"
+                else:
+                    plottype = "line"
         elif isinstance(data, pd.DataFrame):
             if data.apply(utils.is_percentage_series).all():
                 plottype = "composition_comparison"

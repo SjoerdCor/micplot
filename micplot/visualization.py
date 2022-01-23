@@ -16,7 +16,6 @@ from typing import Iterable, Union
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm
 
 from . import defaults, utils, plotfunctions  # TODO: move defaults into yaml
 
@@ -535,7 +534,11 @@ class Visualization:
             highlighted lines. Consider highlighting less lines, or using another plottype
                     """
             warnings.warn(msg)
-        if self.plottype == "vertical_bar" and len(self.highlight) > 1:
+        if (
+            self.plottype == "vertical_bar"
+            and isinstance(self._data_to_plot, pd.DataFrame)
+            and len(self.highlight) > 1
+        ):
             msg = """You are highlighting more than one category in the vertical bar chart.
             You will not be able to distinguish those. Consider highlighting only one category,
             or switching to a line plot.
@@ -698,7 +701,7 @@ class Visualization:
 
             n_different_colors = math.ceil(n_non_highlighted / n_linestyles)
             # TODO: the cmap should be some sort of config or config related
-            # Perhaps the 0 should be higher if u have fewer colors, because black doesn't really look nice
+            # TODO: Perhaps the 0 should be higher if u have fewer colors, because black doesn't really look nice
             # pyplot interprets string floats between 0 and 1 as Grey values (0 == black)
             non_highlight_colorlist = [
                 str(x) for x in np.linspace(0.75, 0, n_different_colors)

@@ -12,7 +12,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/SjoerdCor/micplot",
     packages=setuptools.find_packages(),
-    install_requires=["pandas==1.3", "matplotlib==3.5", "numpy==1.21"],
+    install_requires=["pandas>=1.3", "matplotlib>=3.5", "numpy>=1.21"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
